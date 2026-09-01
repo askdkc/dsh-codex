@@ -76,7 +76,7 @@
     "@deepseek-ai/dsh-user-questions": "0.1.2-alpha.3",
     "@types/js-yaml": "4.0.9",
     "@types/node": "22.20.0",
-    "js-yaml": "4.2.0",
+    "js-yaml": "4.3.1",
     "tsdown": "0.22.2",
     "typescript": "6.0.3",
     "vitest": "4.1.8"
