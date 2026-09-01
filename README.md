@@ -8,10 +8,30 @@ A small out-of-tree DSH command adapter for ChatGPT Codex subscription OAuth. It
 - DSH release: `0.1.2-alpha.3`
 - Cordis: `4.0.2`
 
-The package is pinned to the exact pre-release DSH contracts above. Install it into a compatible DSH profile from a tarball:
+## Installation
 
-```text
-dsh plugin --profile <name> add <tgz>
+From a DeepSeek Harness source checkout, install the bundle directly from GitHub into the target profile:
+
+```sh
+pnpm dsh plugin --profile web add github:askdkc/dsh-codex
+```
+
+Replace `web` with another profile name when needed. Restart a running profile after installation so the new Bundle membership takes effect.
+
+This repository commits the built `lib/` artifacts and `cordis.patch.yml`, so installation from the GitHub spec does not require an npm publication or GitHub Release tarball.
+
+To inspect the composed profile without booting it:
+
+```sh
+pnpm dsh --profile web --dump-config
+```
+
+The dump should contain the `codex-subscription-oauth` row and `providers.openai-codex` under `llm-pi-ai`.
+
+To remove the bundle:
+
+```sh
+pnpm dsh plugin --profile web remove codex-subscription-oauth-plugin
 ```
 
 ## Usage
