@@ -1,0 +1,84 @@
+{
+  "name": "codex-subscription-oauth-plugin",
+  "version": "0.1.0",
+  "description": "Out-of-tree DSH bundle for ChatGPT Codex subscription OAuth",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-authorization": "0.1.2-alpha.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-agent": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-base": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-commands": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-credentials": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-invariants": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-llm": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-user-questions": "0.1.2-alpha.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/cordis-plugin-include": "1.0.7",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.3",
+    "@deepseek-ai/dsh-agent": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-atomic-write": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-attachment": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-authorization": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-base": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-commands": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-credentials": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-credentials-local": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-fs": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-home-paths": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-invariants": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-launch-environment": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-llm": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-scope": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-session": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-settings": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-timeout": "0.1.2-alpha.3",
+    "@deepseek-ai/dsh-user-questions": "0.1.2-alpha.3",
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "22.20.0",
+    "js-yaml": "4.2.0",
+    "tsdown": "0.22.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

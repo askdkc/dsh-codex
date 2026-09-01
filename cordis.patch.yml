@@ -1,0 +1,11 @@
+# Add the command adapter and seed the existing pi-ai adapter with the Codex
+# subscription route. Include replaces a targeted row's complete config, so the
+# provider map below is intentionally the full base configuration for llm-pi-ai.
+- id: llm-pi-ai
+  config:
+    providers:
+      openai-codex: {}
+
+- insert:
+    - id: codex-subscription-oauth
+      name: './lib/index.js'
