@@ -60,4 +60,6 @@ Authentication is a host command, not a model tool. `/codex-auth` uses the DSH c
 
 ## License
 
-MIT. See `LICENSE`.
+MIT
+
+See `LICENSE`.
