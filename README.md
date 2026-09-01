@@ -1,4 +1,4 @@
-# codex-subscription-oauth-plugin
+# DSH: codex subscription oauth plugin
 
 A small out-of-tree DSH command adapter for ChatGPT Codex subscription OAuth. It adds `/codex-auth`; the OAuth implementation remains in the existing DSH services.
 
