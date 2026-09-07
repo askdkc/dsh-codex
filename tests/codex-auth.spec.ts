@@ -3,6 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import CommandRuntime, { type CommandInvocation } from '@deepseek-ai/dsh-commands'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import LlmRuntime from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import type { AuthorizationRequest, AuthorizationInteraction, AuthorizationPrompt } from '@deepseek-ai/dsh-authorization'
 import { apply, inject, name } from '../src/index.ts'
@@ -22,7 +23,13 @@ async function mount(options: {
   contexts.push(ctx)
   await ctx.plugin(SessionStore)
   await ctx.plugin(CommandRuntime)
-  ctx.provide('credentials', {} as never)
+  await ctx.plugin(LlmRuntime)
+  ctx.provide('credentials', {
+    readRecord: async () => undefined,
+    listRecords: async () => [],
+    modifyRecord: async (_key: unknown, mutate: (current: undefined) => Promise<unknown>) => mutate(undefined),
+    deleteRecord: async () => {},
+  } as never)
   ctx.provide('userQuestions', (options.userQuestions ?? {
     ask: async () => { throw new Error('unused user question') },
   }) as never)
@@ -43,7 +50,7 @@ afterEach(async () => {
 
 describe('codex subscription OAuth command', () => {
   it('declares every required activation service', () => {
-    expect(inject).toEqual(['commands', 'credentials', 'userQuestions'])
+    expect(inject).toEqual(['commands', 'credentials', 'llm', 'userQuestions'])
   })
 
   it('registers the exact command and starts the fixed OAuth request', async () => {

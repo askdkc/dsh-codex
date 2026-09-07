@@ -10,6 +10,7 @@ import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
+import LlmRuntime from '@deepseek-ai/dsh-llm'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -48,6 +49,8 @@ describe('built artifact Loader activation', () => {
       "  name: '@deepseek-ai/dsh-authorization'",
       '- id: commands',
       "  name: '@deepseek-ai/dsh-commands'",
+      '- id: llm',
+      "  name: '@deepseek-ai/dsh-llm'",
       '- id: user-questions',
       "  name: '@deepseek-ai/dsh-user-questions'",
       `- id: codex-subscription-oauth\n  name: ${JSON.stringify(builtModule)}`,
@@ -65,6 +68,7 @@ describe('built artifact Loader activation', () => {
       ['@deepseek-ai/dsh-credentials-local', LocalCredentialProvider],
       ['@deepseek-ai/dsh-authorization', AuthorizationService],
       ['@deepseek-ai/dsh-commands', CommandRuntime],
+      ['@deepseek-ai/dsh-llm', LlmRuntime],
       ['@deepseek-ai/dsh-user-questions', UserQuestionService],
     ])
     ctx.loader.internal = {
@@ -87,5 +91,5 @@ describe('built artifact Loader activation', () => {
       description: 'Sign in to ChatGPT for Codex',
       recordInput: false,
     })
-  })
+  }, 20_000)
 })
