@@ -7,6 +7,7 @@ import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
+import LlmRuntime from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { apply, inject, name } from '../src/index.ts'
@@ -31,6 +32,7 @@ async function base(userQuestions: { ask: (request: unknown) => Promise<unknown>
   contexts.push(ctx)
   await ctx.plugin(SessionStore)
   await ctx.plugin(CommandRuntime)
+  await ctx.plugin(LlmRuntime)
   await ctx.plugin(LocalCredentialProvider, { path: join(home, '.credentials.yaml'), watch: false })
   ctx.provide('userQuestions', userQuestions as never)
   return ctx

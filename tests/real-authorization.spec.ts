@@ -8,6 +8,7 @@ import AuthorizationService, { type AuthorizationSession } from '@deepseek-ai/ds
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
+import LlmRuntime from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { apply, inject, name } from '../src/index.ts'
 
@@ -36,6 +37,7 @@ describe('real AuthorizationService codex-auth composition', () => {
     contexts.push(ctx)
     await ctx.plugin(SessionStore)
     await ctx.plugin(CommandRuntime)
+    await ctx.plugin(LlmRuntime)
     await ctx.plugin(LocalCredentialProvider, { path: join(home, '.credentials.yaml'), watch: false })
     await ctx.plugin(AuthorizationService)
 

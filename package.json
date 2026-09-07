@@ -1,7 +1,7 @@
 {
   "name": "codex-subscription-oauth-plugin",
   "version": "0.1.0",
-  "description": "Out-of-tree DSH bundle for ChatGPT Codex subscription OAuth",
+  "description": "Out-of-tree DSH bundle for ChatGPT Codex OAuth and live models",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -38,7 +38,8 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-authorization": "0.1.2-alpha.3"
+    "@deepseek-ai/dsh-authorization": "0.1.2-alpha.3",
+    "@earendil-works/pi-ai": "^0.85.1"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

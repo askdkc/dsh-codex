@@ -9,3 +9,5 @@ coverage/
 !.env.example
 *.log
 .DS_Store
+.kiokuko.json
+AGENTS.md

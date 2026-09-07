@@ -1,11 +1,14 @@
-# Add the command adapter and seed the existing pi-ai adapter with the Codex
-# subscription route. Include replaces a targeted row's complete config, so the
-# provider map below is intentionally the full base configuration for llm-pi-ai.
+# Keep llm-pi-ai mounted for its provider-owned OAuth flow, but let this plugin
+# own the openai-codex route so its executable model set can refresh at runtime.
 - id: llm-pi-ai
   config:
-    providers:
-      openai-codex: {}
+    providers: {}
 
 - insert:
     - id: codex-subscription-oauth
       name: './lib/index.js'
+      config:
+        catalog:
+          refreshIntervalMs: 900000
+          revalidateAfterMs: 60000
+          timeoutMs: 15000

@@ -1,9 +1,10 @@
 /**
- * Host-only `/codex-auth` command for the ChatGPT subscription OAuth flow.
+ * ChatGPT subscription OAuth command plus a live Codex model route.
  *
- * The plugin owns only the human-command adapter. `dsh-authorization` owns
- * attempt lifecycle, while `dsh-llm-pi-ai` owns pi-ai OAuth, PKCE, callback,
- * exchange, refresh, and credential persistence.
+ * `dsh-authorization` owns attempt lifecycle and `dsh-llm-pi-ai` owns pi-ai
+ * OAuth, PKCE, callback, exchange, refresh, and credential persistence. This
+ * plugin owns the account-scoped model catalog and delegates inference to the
+ * public pi-ai adapter.
  *
  * @module codex-subscription-oauth-plugin
  */
@@ -17,13 +18,25 @@ import AuthorizationService, {
 } from '@deepseek-ai/dsh-authorization'
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import { resolveImageAttachmentAccess, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
+import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
+import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { AskUserQuestionAnswer, AskUserQuestionItem } from '@deepseek-ai/dsh-user-questions'
+import { createModels, type Api, type Model, type Provider } from '@earendil-works/pi-ai'
+import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
+import { LiveCodexAdapter } from './adapter.ts'
+import {
+  accountIdFromAccessToken,
+  CodexCatalog,
+  type CodexCatalogSnapshot,
+} from './catalog.ts'
+import { codexAuthContext, credentialStoreFrom } from './credentials.ts'
 
 /** Cordis plugin name. */
 export const name = 'codex-subscription-oauth'
 
-/** Services required before the command adapter can activate. */
-export const inject = ['commands', 'credentials', 'userQuestions']
+/** Services required before the command and model adapter can activate. */
+export const inject = ['commands', 'credentials', 'llm', 'userQuestions']
 
 const CODEX_KEY = credentialKey('llm-pi-ai', 'openai-codex')
 const COMMAND = '/codex-auth'
@@ -41,6 +54,54 @@ const MAX_NOTICE_FIELD_CHARS = 4096
 const MAX_NOTICE_FIELD_BYTES = 8192
 const MAX_NOTICE_AGGREGATE_CHARS = 16384
 const MAX_NOTICE_AGGREGATE_BYTES = 32768
+const ROUTE = 'openai-codex'
+const DEFAULT_REFRESH_INTERVAL_MS = 15 * 60 * 1000
+const DEFAULT_REVALIDATE_AFTER_MS = 60 * 1000
+const DEFAULT_TIMEOUT_MS = 15 * 1000
+const MAX_TIMER_DELAY_MS = 2_147_483_647
+const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 5 * 60 * 1000
+const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+const DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
+const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
+
+/** Optional live-catalog timing controls supplied by the bundle patch. */
+export interface Config {
+  readonly catalog?: {
+    readonly refreshIntervalMs?: number
+    readonly revalidateAfterMs?: number
+    readonly timeoutMs?: number
+  }
+}
+
+interface ResolvedCatalogConfig {
+  readonly refreshIntervalMs: number
+  readonly revalidateAfterMs: number
+  readonly timeoutMs: number
+}
+
+function positiveTimer(value: number | undefined, fallback: number, field: string): number {
+  const resolved = value ?? fallback
+  if (!Number.isSafeInteger(resolved) || resolved <= 0 || resolved > MAX_TIMER_DELAY_MS) {
+    throw new TypeError(`codex-subscription-oauth: catalog.${field} must be a positive timer value`)
+  }
+  return resolved
+}
+
+function resolveCatalogConfig(config: Config): ResolvedCatalogConfig {
+  return {
+    refreshIntervalMs: positiveTimer(
+      config.catalog?.refreshIntervalMs,
+      DEFAULT_REFRESH_INTERVAL_MS,
+      'refreshIntervalMs',
+    ),
+    revalidateAfterMs: positiveTimer(
+      config.catalog?.revalidateAfterMs,
+      DEFAULT_REVALIDATE_AFTER_MS,
+      'revalidateAfterMs',
+    ),
+    timeoutMs: positiveTimer(config.catalog?.timeoutMs, DEFAULT_TIMEOUT_MS, 'timeoutMs'),
+  }
+}
 
 interface NoticeQueue {
   push(notice: AuthorizationNotice): void
@@ -213,8 +274,42 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   }
 }
 
-/** Register the command and own the fallback authorization service, if needed. */
-export function apply(ctx: Context): void {
+/** Bind one immutable catalog generation to the upstream Codex transport. */
+function providerWithModels(
+  provider: Provider,
+  models: readonly Model<Api>[],
+): Provider {
+  const generation = Object.freeze([...models])
+  return { ...provider, getModels: () => generation }
+}
+
+/** Build the one profile shape consumed by DSH's public pi-ai adapter. */
+function profileFor(
+  provider: Provider,
+  models: readonly Model<Api>[],
+): ReadonlyMap<string, ResolvedPiAiProviderProfile> {
+  return new Map([[
+    ROUTE,
+    {
+      provider: ROUTE,
+      displayName: provider.name,
+      streamIdleTimeoutMs: DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+      maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
+      requestImagePixelBudget: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
+      requestImageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
+      retryPolicy: resolveRetryPolicy(undefined, `codex-subscription-oauth: provider "${ROUTE}" retryPolicy`),
+      configuredMaxTokens: new Map(),
+      // dsh-llm-pi-ai alpha.3 types its provider through its nested pi-ai
+      // 0.84.x copy. The public provider contract is structurally compatible;
+      // this plugin intentionally supplies the newer 0.85.x implementation.
+      piProvider: providerWithModels(provider, models) as unknown as ResolvedPiAiProviderProfile['piProvider'],
+    },
+  ]])
+}
+
+/** Register the command, dynamic model route, and fallback authorization service. */
+export function apply(ctx: Context, config: Config = {}): void {
+  const catalogConfig = resolveCatalogConfig(config)
   if (ctx.get('authorization') === undefined) ctx.plugin(AuthorizationService)
   ctx.commands.register({
     name: 'codex-auth',
@@ -222,4 +317,69 @@ export function apply(ctx: Context): void {
     recordInput: false,
     handler: invocation => execute(invocation, ctx),
   })
+
+  const upstream = openaiCodexProvider()
+  const auth = {
+    credentials: credentialStoreFrom(ctx),
+    authContext: codexAuthContext(),
+  }
+  const authModels = createModels(auth)
+  authModels.setProvider(upstream)
+
+  let profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>
+  let registration: AdapterRegistrationHandle | undefined
+  const catalog = new CodexCatalog({
+    ...catalogConfig,
+    baseline: upstream.getModels() as readonly Model<Api>[],
+    async resolveCredential(signal) {
+      const resolved = await authModels.getAuth(ROUTE, { signal })
+      const accessToken = resolved?.auth.apiKey
+      if (accessToken === undefined || accessToken.length === 0) return undefined
+      // Read again after getAuth: it may have refreshed and atomically replaced
+      // the OAuth grant. Prefer its explicit account id, then fall back to the
+      // access-token claim used by older grant shapes.
+      const stored = await auth.credentials.read(ROUTE, { signal })
+      const storedAccountId = stored?.type === 'oauth' ? stored.accountId : undefined
+      const accountId = typeof storedAccountId === 'string' && storedAccountId.length > 0
+        ? storedAccountId
+        : accountIdFromAccessToken(accessToken)
+      return {
+        accessToken,
+        ...(accountId === undefined ? {} : { accountId }),
+      }
+    },
+    onChange(snapshot: CodexCatalogSnapshot) {
+      profiles = profileFor(upstream, snapshot.models)
+      registration?.replace([ROUTE])
+    },
+    warn: message => ctx.logger.warn(message),
+  })
+  profiles = profileFor(upstream, catalog.current.models)
+  const adapter = new LiveCodexAdapter({
+    profiles: () => profiles,
+    resolveApiKey: async () => undefined,
+    auth,
+    resolveAttachments: () => ctx.get('attachments'),
+    resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
+      attachments,
+      hostPath => ctx.get('fs')?.processPathFromHostPath(hostPath),
+      ref,
+    ),
+    catalog,
+    initialWaitMs: catalogConfig.timeoutMs,
+    onReplayDegrade: ({ provider, model, reason }) => {
+      ctx.logger.warn(
+        `codex-subscription-oauth: unusable replay state on "${provider}/${model}";`
+        + ` using provider-neutral history (${reason})`,
+      )
+    },
+  })
+  registration = ctx.llm.registerAdapter([ROUTE], adapter)
+
+  ctx.on('credentials/record-updated', key => {
+    if (key !== CODEX_KEY) return
+    void catalog.forceRefresh()
+  })
+  ctx.effect(() => () => catalog.stop(), 'codex model catalog')
+  void catalog.start()
 }
