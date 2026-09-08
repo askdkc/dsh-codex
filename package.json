@@ -19,7 +19,9 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
+    "README.ja.md",
     "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
     "package.json"
   ],
   "engines": {
@@ -38,8 +40,7 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-authorization": "0.1.2-alpha.3",
-    "@earendil-works/pi-ai": "^0.85.1"
+    "@deepseek-ai/dsh-authorization": "0.1.2-alpha.3"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
@@ -75,6 +76,7 @@
     "@deepseek-ai/dsh-settings": "0.1.2-alpha.3",
     "@deepseek-ai/dsh-timeout": "0.1.2-alpha.3",
     "@deepseek-ai/dsh-user-questions": "0.1.2-alpha.3",
+    "@earendil-works/pi-ai": "0.85.1",
     "@types/js-yaml": "4.0.9",
     "@types/node": "22.20.0",
     "js-yaml": "4.3.1",

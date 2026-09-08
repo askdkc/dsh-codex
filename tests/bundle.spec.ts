@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -52,5 +52,45 @@ describe('bundle patch contract', () => {
 
     expect(row).toContain("name: '@deepseek-ai/dsh-llm-pi-ai'")
     expect(row).not.toMatch(/^\s+config:/m)
+  })
+
+  it('keeps pi-ai and its provider-wide SDK graph out of runtime dependencies', async () => {
+    const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+      files?: string[]
+    }
+
+    expect(manifest.dependencies).toEqual({
+      '@deepseek-ai/dsh-authorization': '0.1.2-alpha.3',
+    })
+    expect(manifest.devDependencies?.['@earendil-works/pi-ai']).toBe('0.85.1')
+    expect(manifest.files).toContain('README.ja.md')
+    expect(manifest.dependencies).not.toHaveProperty('@earendil-works/pi-ai')
+    expect(manifest.dependencies).not.toHaveProperty('@google/genai')
+    expect(manifest.dependencies).not.toHaveProperty('protobufjs')
+    await expect(readFile(join(packageRoot, 'THIRD_PARTY_NOTICES.md'), 'utf8')).resolves.toContain(
+      '@earendil-works/pi-ai 0.85.1',
+    )
+  })
+
+  it('emits the opaque OAuth target without forbidden external imports', async () => {
+    const lib = join(packageRoot, 'lib')
+    const files = (await readdir(lib)).filter(file => file.endsWith('.js'))
+    expect(files).toContain('openai-codex.js')
+
+    const imports = new Set<string>()
+    for (const file of files) {
+      const source = await readFile(join(lib, file), 'utf8')
+      for (const match of source.matchAll(/(?:\bfrom\s*|\bimport\s*\()\s*['"]([^'"]+)['"]/g)) {
+        const specifier = match[1]
+        if (specifier !== undefined) imports.add(specifier)
+      }
+    }
+
+    expect([...imports]).not.toContain('@earendil-works/pi-ai')
+    expect([...imports]).not.toContain('@earendil-works/pi-ai/providers/openai-codex')
+    expect([...imports]).not.toContain('@google/genai')
+    expect([...imports]).not.toContain('protobufjs')
   })
 })
