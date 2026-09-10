@@ -12,6 +12,14 @@ pnpm dsh plugin --profile web add github:askdkc/dsh-codex
 
 `web` は対象のプロファイル名に置き換え、インストール後にそのプロファイルを再起動してください。
 
+ACPで使う場合は、ACP用プロファイルにもインストールします。
+
+```sh
+pnpm dsh plugin --profile acp add github:askdkc/dsh-codex
+```
+
+プラグインはプロファイルごとに読み込まれるため、`web` に導入しただけでは `acp` にモデルは追加されません。ACPクライアントが起動するDSHプロセスを再起動し、モデル選択を開き直してください。別のプロファイルを使っている場合は、`acp` をその名前に置き換えます。
+
 Codex用のChatGPTアカウントでログインします。
 
 ```text

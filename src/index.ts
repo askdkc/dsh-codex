@@ -288,7 +288,11 @@ function profileFor(
   provider: Provider,
   models: readonly Model<Api>[],
 ): ReadonlyMap<string, ResolvedPiAiProviderProfile> {
-  return new Map([[
+  // DSH 0.1.5 reads modelErrors during model resolution. Keep this addition
+  // explicit while also compiling against alpha.3, whose type omits it.
+  return new Map<string, ResolvedPiAiProviderProfile & {
+    readonly modelErrors: ReadonlyMap<string, string>
+  }>([[
     ROUTE,
     {
       provider: ROUTE,
@@ -299,10 +303,11 @@ function profileFor(
       requestImageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
       retryPolicy: resolveRetryPolicy(undefined, `codex-subscription-oauth: provider "${ROUTE}" retryPolicy`),
       configuredMaxTokens: new Map(),
+      modelErrors: new Map(),
       // dsh-llm-pi-ai alpha.3 types its provider through its nested pi-ai
       // 0.84.x copy. The public provider contract is structurally compatible;
       // this plugin intentionally supplies the newer 0.85.x implementation.
-      piProvider: providerWithModels(provider, models) as unknown as ResolvedPiAiProviderProfile['piProvider'],
+      piProvider: providerWithModels(provider, models) as unknown as NonNullable<ResolvedPiAiProviderProfile['piProvider']>,
     },
   ]])
 }
