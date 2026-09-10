@@ -12,6 +12,14 @@ pnpm dsh plugin --profile web add github:askdkc/dsh-codex
 
 Replace `web` with the target profile name, then restart that profile.
 
+For ACP, install the plugin in the ACP profile too:
+
+```sh
+pnpm dsh plugin --profile acp add github:askdkc/dsh-codex
+```
+
+Profiles load plugins independently: installing into `web` does not add models to `acp`. Restart the DSH process launched by your ACP client, then reopen its model selector. If the client uses a different profile, replace `acp` with that name.
+
 Sign in to ChatGPT for Codex:
 
 ```text
