@@ -79,7 +79,7 @@
     "@earendil-works/pi-ai": "0.85.1",
     "@types/js-yaml": "4.0.9",
     "@types/node": "22.20.0",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "tsdown": "0.22.2",
     "typescript": "6.0.3",
     "vitest": "4.1.11"
