@@ -283,6 +283,46 @@ function providerWithModels(
   return { ...provider, getModels: () => generation }
 }
 
+/** Supply executable metadata for GPT-6 models missing from the pinned pi-ai catalog. */
+function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
+  const models = provider.getModels() as readonly Model<Api>[]
+  const astra = models.find(model => model.id === 'gpt-6-astra')
+  if (astra === undefined) throw new Error('codex-subscription-oauth: missing GPT-6 transport metadata')
+  const additions = [
+    { id: 'gpt-6-sol', name: 'GPT-6 Sol', input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+    { id: 'gpt-6-luna', name: 'GPT-6 Luna', input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
+  ] as const
+  return Object.freeze([
+    ...models,
+    ...additions.filter(entry => !models.some(model => model.id === entry.id)).map(entry => Object.freeze({
+      ...astra,
+      id: entry.id,
+      name: entry.name,
+      thinkingLevelMap: {
+        off: null,
+        low: 'low',
+        medium: 'medium',
+        high: 'high',
+        xhigh: 'xhigh',
+        max: 'max',
+      },
+      cost: {
+        input: entry.input,
+        output: entry.output,
+        cacheRead: entry.cacheRead,
+        cacheWrite: entry.cacheWrite,
+        tiers: [{
+          inputTokensAbove: 272000,
+          input: entry.input * 2,
+          output: entry.output * 1.5,
+          cacheRead: entry.cacheRead * 2,
+          cacheWrite: entry.cacheWrite * 2,
+        }],
+      },
+    })),
+  ])
+}
+
 /** Build the one profile shape consumed by DSH's public pi-ai adapter. */
 function profileFor(
   provider: Provider,
@@ -324,6 +364,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   })
 
   const upstream = openaiCodexProvider()
+  const bundledModels = bundledCodexModels(upstream)
   const auth = {
     credentials: credentialStoreFrom(ctx),
     authContext: codexAuthContext(),
@@ -335,7 +376,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   let registration: AdapterRegistrationHandle | undefined
   const catalog = new CodexCatalog({
     ...catalogConfig,
-    baseline: upstream.getModels() as readonly Model<Api>[],
+    baseline: bundledModels,
     async resolveCredential(signal) {
       const resolved = await authModels.getAuth(ROUTE, { signal })
       const accessToken = resolved?.auth.apiKey

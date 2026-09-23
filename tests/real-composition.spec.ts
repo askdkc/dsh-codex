@@ -75,7 +75,7 @@ async function harness(options: {
 }
 
 describe('real Cordis authorization composition', () => {
-  it('offers GPT-6 Astra from the bundled executable fallback catalog', async () => {
+  it('offers the GPT-6 family from the bundled executable fallback catalog', async () => {
     const { ctx } = await harness()
 
     await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
@@ -87,7 +87,16 @@ describe('real Cordis authorization composition', () => {
       { id: 'gpt-5.6-sol' },
       { id: 'gpt-5.6-terra' },
       { id: 'gpt-6-astra', name: 'GPT-6 Astra', inputModalities: ['text', 'image'] },
+      { id: 'gpt-6-sol', name: 'GPT-6 Sol', inputModalities: ['text', 'image'] },
+      { id: 'gpt-6-luna', name: 'GPT-6 Luna', inputModalities: ['text', 'image'] },
     ])
+    for (const id of ['gpt-6-sol', 'gpt-6-luna']) {
+      await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({
+        provider: 'openai-codex', id,
+        inputModalities: ['text', 'image'],
+        context: { contextWindow: 272000 },
+      })
+    }
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6-astra')).resolves.toEqual({
       provider: 'openai-codex',
       id: 'gpt-6-astra',
@@ -115,6 +124,8 @@ describe('real Cordis authorization composition', () => {
     const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => new Response(JSON.stringify({
       models: [
         { slug: 'gpt-6-astra', visibility: 'list', supported_in_api: true },
+        { slug: 'gpt-6-sol', visibility: 'list', supported_in_api: true },
+        { slug: 'gpt-6-luna', visibility: 'list', supported_in_api: true },
         { slug: 'future-without-transport-metadata', visibility: 'list', supported_in_api: true },
         { slug: 'gpt-5.6-luna', visibility: 'list', supported_in_api: true },
       ],
@@ -132,6 +143,8 @@ describe('real Cordis authorization composition', () => {
 
     await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
       { id: 'gpt-6-astra' },
+      { id: 'gpt-6-sol' },
+      { id: 'gpt-6-luna' },
       { id: 'gpt-5.6-luna' },
     ])
     expect(fetchMock).toHaveBeenCalledOnce()

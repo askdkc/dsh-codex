@@ -20,7 +20,11 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
     const plugin = artifact === 'source' ? sourcePlugin : await import('../lib/index.js')
     let grant: unknown
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
-      models: [{ slug: 'gpt-6-astra', display_name: 'Account Astra', visibility: 'list' }],
+      models: [
+        { slug: 'gpt-6-astra', display_name: 'Account Astra', visibility: 'list' },
+        { slug: 'gpt-6-sol', display_name: 'Account Sol', visibility: 'list' },
+        { slug: 'gpt-6-luna', display_name: 'Account Luna', visibility: 'list' },
+      ],
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -60,6 +64,8 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
     await vi.waitFor(async () => {
       await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
         { id: 'gpt-6-astra', name: 'Account Astra' },
+        { id: 'gpt-6-sol', name: 'Account Sol' },
+        { id: 'gpt-6-luna', name: 'Account Luna' },
       ])
     })
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6-astra')).resolves.toMatchObject({
@@ -68,6 +74,11 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
     await expect(adapter.prepareCall('openai-codex', 'gpt-6-astra')).resolves.toMatchObject({
       model: { id: 'gpt-6-astra', name: 'Account Astra' },
     })
+    for (const [id, name] of [['gpt-6-sol', 'Account Sol'], ['gpt-6-luna', 'Account Luna']] as const) {
+      await expect(adapter.prepareCall('openai-codex', id)).resolves.toMatchObject({
+        model: { id, name }, stream: expect.any(Function),
+      })
+    }
     expect(prepared.model.name).toBe('GPT-6 Astra')
     await expect(adapter.prepareCall('openai-codex', 'missing-model')).rejects.toMatchObject({
       code: 'UNKNOWN_MODEL',
