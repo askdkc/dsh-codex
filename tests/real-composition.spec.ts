@@ -10,7 +10,13 @@ import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import AuthorizationService from '@deepseek-ai/dsh-authorization'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
-import { apply as applyLlmPiAi, inject as injectLlmPiAi, name as nameLlmPiAi } from '@deepseek-ai/dsh-llm-pi-ai'
+import {
+  apply as applyLlmPiAi,
+  Config as LlmPiAiConfig,
+  inject as injectLlmPiAi,
+  name as nameLlmPiAi,
+  type Options as LlmPiAiOptions,
+} from '@deepseek-ai/dsh-llm-pi-ai'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -36,7 +42,7 @@ async function bundleLlmConfig(): Promise<Parameters<typeof applyLlmPiAi>[1]> {
   const rows = yaml.load(source) as unknown[]
   const llmRow = rows.map(record).find(row => row.id === 'llm-pi-ai')
   if (llmRow === undefined) throw new Error('missing llm-pi-ai bundle row')
-  return record(llmRow.config) as Parameters<typeof applyLlmPiAi>[1]
+  return LlmPiAiConfig(record(llmRow.config) as unknown as LlmPiAiOptions)
 }
 
 function owner(ctx: Context): Agent {

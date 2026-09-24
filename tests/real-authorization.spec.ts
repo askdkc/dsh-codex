@@ -105,7 +105,7 @@ describe('real AuthorizationService codex-auth composition', () => {
     })
 
     const output = JSON.stringify(execution)
-    const sessionOutput = JSON.stringify(actor.session.events)
+    const sessionOutput = JSON.stringify(actor.session.snapshotEvents())
     for (const sensitive of [ACCESS_TOKEN, REFRESH_TOKEN, REDIRECT_TEXT]) {
       expect(output).not.toContain(sensitive)
       expect(sessionOutput).not.toContain(sensitive)

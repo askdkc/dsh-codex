@@ -9,6 +9,7 @@ import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import {
   apply as applyPiAi,
+  Config as ConfigPiAi,
   inject as injectPiAi,
   name as namePiAi,
 } from '@deepseek-ai/dsh-llm-pi-ai'
@@ -73,7 +74,7 @@ try {
   }))
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(AuthorizationService)
-  await ctx.plugin({ name: namePiAi, inject: injectPiAi, apply: applyPiAi }, { providers: {} })
+  await ctx.plugin({ name: namePiAi, inject: injectPiAi, apply: applyPiAi }, ConfigPiAi({ providers: {} }))
   await ctx.plugin(builtPlugin)
 
   const models = await ctx.llm.listModels('openai-codex')

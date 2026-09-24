@@ -54,16 +54,19 @@ describe('bundle patch contract', () => {
     expect(row).not.toMatch(/^\s+config:/m)
   })
 
-  it('keeps pi-ai and its provider-wide SDK graph out of runtime dependencies', async () => {
+  it('uses the host DSH services and keeps the pi-ai SDK graph out of runtime dependencies', async () => {
     const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>
+      peerDependencies?: Record<string, string>
       devDependencies?: Record<string, string>
       files?: string[]
     }
 
-    expect(manifest.dependencies).toEqual({
-      '@deepseek-ai/dsh-authorization': '0.1.2-alpha.3',
-    })
+    expect(manifest.dependencies ?? {}).toEqual({})
+    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-authorization']).toBe('^0.1.7-rc.1')
+    for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(range).toBe('^0.1.7-rc.1')
+    }
     expect(manifest.devDependencies?.['@earendil-works/pi-ai']).toBe('0.85.1')
     expect(manifest.files).toContain('README.ja.md')
     expect(manifest.dependencies).not.toHaveProperty('@earendil-works/pi-ai')

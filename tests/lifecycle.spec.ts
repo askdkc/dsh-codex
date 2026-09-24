@@ -138,7 +138,7 @@ describe('authorization service ownership and lifecycle', () => {
     expect(warn).not.toHaveBeenCalled()
     expect(error).not.toHaveBeenCalled()
     expect(JSON.stringify(execution)).not.toContain('auth.example')
-    expect(JSON.stringify(actor.session.events)).not.toContain('auth.example')
+    expect(JSON.stringify(actor.session.snapshotEvents())).not.toContain('auth.example')
     expect(begin).toHaveBeenCalledOnce()
   })
 })

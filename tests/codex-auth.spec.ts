@@ -194,7 +194,7 @@ describe('codex subscription OAuth command', () => {
 
     expect(received).toBe(rawCode)
     expect(execution?.result).toEqual({ kind: 'success', text: 'Codex authentication succeeded.' })
-    expect(JSON.stringify(owner.session.events)).not.toContain(rawCode)
+    expect(JSON.stringify(owner.session.snapshotEvents())).not.toContain(rawCode)
     expect(JSON.stringify(execution)).not.toContain(rawCode)
     expect(owner.session.deriveMessages()).toEqual([])
     expect(JSON.stringify(userQuestions)).not.toContain(rawCode)
@@ -291,7 +291,7 @@ describe('codex subscription OAuth command', () => {
     begin.mockRejectedValueOnce(new Error('upstream token=secret'))
     const failed = await ctx.commands.execute(owner, '/codex-auth', [], new AbortController().signal)
     expect(failed?.result).toEqual({ kind: 'error', text: 'Codex authentication failed.' })
-    expect(JSON.stringify(owner.session.events)).not.toContain('upstream token=secret')
+    expect(JSON.stringify(owner.session.snapshotEvents())).not.toContain('upstream token=secret')
     expect(JSON.stringify(failed)).not.toContain('upstream token=secret')
   })
 
