@@ -63,15 +63,15 @@ describe('bundle patch contract', () => {
     }
 
     expect(manifest.dependencies ?? {}).toEqual({})
-    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-authorization']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-authorization']).toBe('^0.1.7-rc.1 || ^0.2.0-rc.1')
     for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-')) expect(range).toBe('^0.1.7-rc.1')
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(range).toBe('^0.1.7-rc.1 || ^0.2.0-rc.1')
     }
     expect(manifest.devDependencies?.['@earendil-works/pi-ai']).toBe('0.85.1')
     expect(manifest.files).toContain('README.ja.md')
-    expect(manifest.dependencies).not.toHaveProperty('@earendil-works/pi-ai')
-    expect(manifest.dependencies).not.toHaveProperty('@google/genai')
-    expect(manifest.dependencies).not.toHaveProperty('protobufjs')
+    expect(manifest.dependencies ?? {}).not.toHaveProperty('@earendil-works/pi-ai')
+    expect(manifest.dependencies ?? {}).not.toHaveProperty('@google/genai')
+    expect(manifest.dependencies ?? {}).not.toHaveProperty('protobufjs')
     await expect(readFile(join(packageRoot, 'THIRD_PARTY_NOTICES.md'), 'utf8')).resolves.toContain(
       '@earendil-works/pi-ai 0.85.1',
     )
