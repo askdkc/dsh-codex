@@ -20,6 +20,15 @@ pnpm dsh plugin --profile acp add github:askdkc/dsh-codex
 
 Profiles load plugins independently: installing into `web` does not add models to `acp`. Restart the DSH process launched by your ACP client, then reopen its model selector. If the client uses a different profile, replace `acp` with that name.
 
+If installation into an existing ACP profile fails with `ERR_PNPM_UNEXPECTED_STORE`, reinstall that profile's dependencies using the current pnpm store, then retry:
+
+```sh
+pnpm --dir ~/.dsh/profiles/acp install --force --frozen-lockfile
+pnpm dsh plugin --profile acp add github:askdkc/dsh-codex
+```
+
+The first command rebuilds the profile's `node_modules` without changing its lockfile. If it fails, resolve that error before retrying the plugin installation. If you use a custom `DSH_HOME` or profile name, adjust both commands. The `allowBuilds` hint printed after a store mismatch does not fix this error.
+
 Sign in to ChatGPT for Codex:
 
 ```text
