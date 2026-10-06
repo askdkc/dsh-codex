@@ -12,9 +12,8 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
-// Run this suite against both the pinned alpha.3 packages and DSH 0.1.5-rc.1.
-// Use the real adapter: listModels alone does not exercise the modelErrors
-// lookup introduced in 0.1.5, but the picker and request preparation do.
+// Use the real adapter: listing alone does not exercise model resolution or
+// request preparation. Transport compatibility is covered in transport.spec.ts.
 describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact => {
   it('resolves and prepares models across fallback, live refresh, and logout', async () => {
     const plugin = artifact === 'source' ? sourcePlugin : await import('../lib/index.js')
@@ -24,6 +23,7 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
         { slug: 'gpt-6-astra', display_name: 'Account Astra', visibility: 'list' },
         { slug: 'gpt-6-sol', display_name: 'Account Sol', visibility: 'list' },
         { slug: 'gpt-6-luna', display_name: 'Account Luna', visibility: 'list' },
+        { slug: 'gpt-6.1-sol', display_name: 'Account Sol 6.1', visibility: 'list' },
       ],
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -45,6 +45,7 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
 
     const fallback = await ctx.llm.listModels('openai-codex')
     expect(fallback.length).toBeGreaterThan(1)
+    expect(fallback).toContainEqual(expect.objectContaining({ id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol' }))
     for (const model of fallback) {
       await expect(ctx.llm.resolveModelInfo('openai-codex', model.id)).resolves.toMatchObject({
         id: model.id, name: model.name,
@@ -66,6 +67,7 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
         { id: 'gpt-6-astra', name: 'Account Astra' },
         { id: 'gpt-6-sol', name: 'Account Sol' },
         { id: 'gpt-6-luna', name: 'Account Luna' },
+        { id: 'gpt-6.1-sol', name: 'Account Sol 6.1' },
       ])
     })
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6-astra')).resolves.toMatchObject({
@@ -74,7 +76,7 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
     await expect(adapter.prepareCall('openai-codex', 'gpt-6-astra')).resolves.toMatchObject({
       model: { id: 'gpt-6-astra', name: 'Account Astra' },
     })
-    for (const [id, name] of [['gpt-6-sol', 'Account Sol'], ['gpt-6-luna', 'Account Luna']] as const) {
+    for (const [id, name] of [['gpt-6-sol', 'Account Sol'], ['gpt-6-luna', 'Account Luna'], ['gpt-6.1-sol', 'Account Sol 6.1']] as const) {
       await expect(adapter.prepareCall('openai-codex', id)).resolves.toMatchObject({
         model: { id, name }, stream: expect.any(Function),
       })

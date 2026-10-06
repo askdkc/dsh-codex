@@ -93,16 +93,20 @@ describe('real Cordis authorization composition', () => {
       { id: 'gpt-5.6-sol' },
       { id: 'gpt-5.6-terra' },
       { id: 'gpt-6-astra', name: 'GPT-6 Astra', inputModalities: ['text', 'image'] },
+      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputModalities: ['text', 'image'] },
       { id: 'gpt-6-sol', name: 'GPT-6 Sol', inputModalities: ['text', 'image'] },
       { id: 'gpt-6-luna', name: 'GPT-6 Luna', inputModalities: ['text', 'image'] },
     ])
-    for (const id of ['gpt-6-sol', 'gpt-6-luna']) {
+    for (const id of ['gpt-6-sol', 'gpt-6-luna', 'gpt-6.1-sol']) {
       await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({
         provider: 'openai-codex', id,
         inputModalities: ['text', 'image'],
         context: { contextWindow: 272000 },
       })
     }
+    await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6.1-sol')).resolves.toMatchObject({
+      reasoning: { efforts: ['low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
+    })
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6-astra')).resolves.toEqual({
       provider: 'openai-codex',
       id: 'gpt-6-astra',

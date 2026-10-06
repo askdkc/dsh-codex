@@ -31,6 +31,7 @@ import {
   type CodexCatalogSnapshot,
 } from './catalog.ts'
 import { codexAuthContext, credentialStoreFrom } from './credentials.ts'
+import { providerWithModels } from './provider.ts'
 
 /** Cordis plugin name. */
 export const name = 'codex-subscription-oauth'
@@ -274,21 +275,13 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   }
 }
 
-/** Bind one immutable catalog generation to the upstream Codex transport. */
-function providerWithModels(
-  provider: Provider,
-  models: readonly Model<Api>[],
-): Provider {
-  const generation = Object.freeze([...models])
-  return { ...provider, getModels: () => generation }
-}
-
 /** Supply executable metadata for GPT-6 models missing from the pinned pi-ai catalog. */
 function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
   const models = provider.getModels() as readonly Model<Api>[]
   const astra = models.find(model => model.id === 'gpt-6-astra')
   if (astra === undefined) throw new Error('codex-subscription-oauth: missing GPT-6 transport metadata')
   const additions = [
+    { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
     { id: 'gpt-6-sol', name: 'GPT-6 Sol', input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
     { id: 'gpt-6-luna', name: 'GPT-6 Luna', input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
   ] as const
@@ -300,6 +293,7 @@ function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
       name: entry.name,
       thinkingLevelMap: {
         off: null,
+        ...(entry.id === 'gpt-6.1-sol' ? { minimal: null } : {}),
         low: 'low',
         medium: 'medium',
         high: 'high',
