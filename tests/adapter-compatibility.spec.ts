@@ -46,6 +46,13 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
     const fallback = await ctx.llm.listModels('openai-codex')
     expect(fallback.length).toBeGreaterThan(1)
     expect(fallback).toContainEqual(expect.objectContaining({ id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol' }))
+    expect(fallback).toContainEqual(expect.objectContaining({ id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra' }))
+    await expect(adapter.prepareCall('openai-codex', 'gpt-6.1-terra')).resolves.toMatchObject({
+      model: { context: { contextWindow: 500000 }, inputModalities: ['text', 'image'] },
+    })
+    await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6.1-terra')).resolves.toMatchObject({
+      reasoning: { efforts: ['low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
+    })
     for (const model of fallback) {
       await expect(ctx.llm.resolveModelInfo('openai-codex', model.id)).resolves.toMatchObject({
         id: model.id, name: model.name,

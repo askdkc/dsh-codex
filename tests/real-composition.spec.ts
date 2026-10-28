@@ -96,6 +96,7 @@ describe('real Cordis authorization composition', () => {
       { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputModalities: ['text', 'image'] },
       { id: 'gpt-6-sol', name: 'GPT-6 Sol', inputModalities: ['text', 'image'] },
       { id: 'gpt-6-luna', name: 'GPT-6 Luna', inputModalities: ['text', 'image'] },
+      { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', inputModalities: ['text', 'image'] },
     ])
     for (const id of ['gpt-6-sol', 'gpt-6-luna', 'gpt-6.1-sol']) {
       await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({

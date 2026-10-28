@@ -64,6 +64,12 @@ Remove the plugin:
 pnpm dsh plugin --profile web remove codex-subscription-oauth-plugin
 ```
 
+## Models and connection diagnostics
+
+GPT-6.1 Terra uses its own [Codex catalog metadata](https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json): a 500,000-token default context, text/image input, and low through max reasoning supported by this adapter. Its output cap and cost estimate come from the [Terra model page](https://developers.openai.com/api/docs/models/gpt-6.1-terra) and [API pricing](https://developers.openai.com/api/docs/pricing), rather than Astra. Account visibility still comes from the authenticated catalog. Unknown entries without executable output/cost metadata emit `MODEL_METADATA_MISSING`; their capabilities are not guessed from another model.
+
+Connection failures retain the SDK's before/after-start phase, fallback choice and safe error code. Raw close reasons, stacks, headers and bodies are omitted from these diagnostics. The SDK may switch to SSE before its first response event; the plugin adds no retries and does not replay an interrupted response or tool output. Cancellation stays cancelled, and an SSE HTTP error retains its status for the host's classification.
+
 ## License
 
 MIT. See [LICENSE](./LICENSE).

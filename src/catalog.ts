@@ -201,6 +201,11 @@ export class CodexCatalog {
       }
       const official = parseOfficialModels(payload)
       if (official.length === 0) throw Object.assign(new Error('empty model list'), { code: 'EMPTY_LIST' })
+      // A list entry alone does not declare an output cap or pricing. Explain
+      // missing executable metadata instead of silently hiding new models or
+      // guessing their capabilities from an unrelated model.
+      const missing = official.filter(entry => !this.baselineById.has(entry.slug)).length
+      if (missing > 0) this.warn(`codex-subscription-oauth: MODEL_METADATA_MISSING (${missing} listed models)`)
       const models = official
         .map(entry => {
           const baseline = this.baselineById.get(entry.slug)

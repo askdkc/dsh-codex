@@ -64,6 +64,12 @@ Codex用のChatGPTアカウントでログインします。
 pnpm dsh plugin --profile web remove codex-subscription-oauth-plugin
 ```
 
+## モデルと接続診断
+
+GPT-6.1 Terraには、Astraからのコピーではなく[公式Codexカタログ](https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json)の通常コンテキスト500,000、テキスト・画像入力と、本アダプターで扱えるlow〜maxのreasoning情報を使用します。出力上限と価格の見積りは[Terraのモデル情報](https://developers.openai.com/api/docs/models/gpt-6.1-terra)と[API価格](https://developers.openai.com/api/docs/pricing)に基づきます。アカウントでの表示可否は認証済みカタログで決まります。実行に必要な出力上限・価格情報がない未知モデルには `MODEL_METADATA_MISSING` を出し、他モデルの能力を推測でコピーしません。
+
+接続失敗には、SDKの開始前・開始後の段階、SSE切替の有無と安全なエラーコードを残します。診断には生のclose理由・stack・header・本文を含めません。最初の応答イベントより前ではSDKがSSEに切り替えることがありますが、プラグインは再試行を追加せず、途中の応答やツール出力を再送しません。キャンセルを維持し、SSEのHTTPエラーではホストが分類できるようstatusを保持します。
+
 ## ライセンス
 
 MITライセンスです。詳細は [LICENSE](./LICENSE) を参照してください。

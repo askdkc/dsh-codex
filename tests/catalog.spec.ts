@@ -118,6 +118,7 @@ describe('live Codex catalog', () => {
 
     expect(created.current.models.map(model => model.id)).toEqual(['gpt-6-astra'])
     expect(warn.mock.calls.flat().join('\n')).toContain('NO_EXECUTABLE_MODELS')
+    expect(warn.mock.calls.flat().join('\n')).toContain('MODEL_METADATA_MISSING')
     expect(warn.mock.calls.flat().join('\n')).toContain('EMPTY_LIST')
   })
 

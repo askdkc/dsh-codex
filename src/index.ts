@@ -314,6 +314,22 @@ function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
         }],
       },
     })),
+    // Codex models-manager/models.json supplies Terra's own context, input and
+    // reasoning metadata; the API model/pricing pages supply its output cap
+    // and cost estimate. Do not inherit Astra's capabilities or prices.
+    ...models.some(model => model.id === 'gpt-6.1-terra') ? [] : [{
+      id: 'gpt-6.1-terra',
+      name: 'GPT-6.1 Terra',
+      api: 'openai-codex-responses' as const,
+      provider: ROUTE,
+      baseUrl: 'https://chatgpt.com/backend-api',
+      reasoning: true,
+      input: ['text', 'image'] as ('text' | 'image')[],
+      contextWindow: 500000,
+      maxTokens: 128000,
+      thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+      cost: { input: 1, output: 5, cacheRead: 0.05, cacheWrite: 1.25 },
+    }],
   ])
 }
 
@@ -321,6 +337,7 @@ function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
 function profileFor(
   provider: Provider,
   models: readonly Model<Api>[],
+  warn: (message: string) => void,
 ): ReadonlyMap<string, ResolvedPiAiProviderProfile> {
   return new Map<string, ResolvedPiAiProviderProfile>([[
     ROUTE,
@@ -334,7 +351,7 @@ function profileFor(
       retryPolicy: resolveRetryPolicy(undefined, `codex-subscription-oauth: provider "${ROUTE}" retryPolicy`),
       configuredMaxTokens: new Map(),
       modelErrors: new Map(),
-      piProvider: providerWithModels(provider, models),
+      piProvider: providerWithModels(provider, models, warn),
     },
   ]])
 }
@@ -361,6 +378,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   let profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>
   let registration: AdapterRegistrationHandle | undefined
+  const warn = (message: string): void => { ctx.logger.warn(message) }
   const catalog = new CodexCatalog({
     ...catalogConfig,
     baseline: bundledModels,
@@ -382,12 +400,12 @@ export function apply(ctx: Context, config: Config = {}): void {
       }
     },
     onChange(snapshot: CodexCatalogSnapshot) {
-      profiles = profileFor(upstream, snapshot.models)
+      profiles = profileFor(upstream, snapshot.models, warn)
       registration?.replace([ROUTE])
     },
-    warn: message => ctx.logger.warn(message),
+    warn,
   })
-  profiles = profileFor(upstream, catalog.current.models)
+  profiles = profileFor(upstream, catalog.current.models, warn)
   const adapter = new LiveCodexAdapter({
     profiles: () => profiles,
     resolveApiKey: async () => undefined,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import * as sourcePlugin from '../src/index.ts'
 import type { Context as PiContext } from '@earendil-works/pi-ai'
 
@@ -46,8 +46,10 @@ afterEach(async () => {
 
 describe.each(['source', 'built'] as const)('%s Codex transport', artifact => {
   it.each([
+    ['gpt-6-astra', false], ['gpt-6-astra', true],
     ['gpt-6-luna', false], ['gpt-6-luna', true],
     ['gpt-6.1-sol', false], ['gpt-6.1-sol', true],
+    ['gpt-6.1-terra', false], ['gpt-6.1-terra', true],
   ] as const)('sends %s with system instructions (tools=%s) through the real adapter and SDK', async (model, withTools) => {
     const plugin = artifact === 'source' ? sourcePlugin : await import('../lib/index.js')
     const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -61,6 +63,7 @@ describe.each(['source', 'built'] as const)('%s Codex transport', artifact => {
       const payload = JSON.parse(body)
       expect(payload).toMatchObject({
         model, instructions: 'Answer briefly.',
+        reasoning: { effort: 'max' },
         ...(withTools ? { tools: [{ type: 'function', name: 'lookup', parameters: { type: 'object' } }] } : {}),
         input: [{ role: 'user', content: [{ type: 'input_text', text: 'バーニラバニラバーニラ！' }] }],
       })
@@ -85,6 +88,7 @@ describe.each(['source', 'built'] as const)('%s Codex transport', artifact => {
     const chunks = []
     for await (const chunk of prepared.stream({
       provider: 'openai-codex', model, system: 'Answer briefly.',
+      reasoningEffort: ReasoningEffortId('max'),
       ...(withTools ? { tools: [{ name: 'lookup', description: 'Look up a fact.', parameters: { type: 'object' as const, properties: {} } }] } : {}),
       messages: [{ role: 'user', content: [{ type: 'text', text: 'バーニラバニラバーニラ！' }] }],
     })) chunks.push(chunk)
