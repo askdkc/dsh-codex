@@ -4,3 +4,10 @@ allowBuilds:
   koffi: false
   node-pty: false
   protobufjs: false
+
+# Keep vulnerable transitive releases out while allowing compatible fixes.
+overrides:
+  undici: ^8.12.3
+  zod: ^4.6.7
+  fast-uri: ^3.1.9
+  sharp: ~0.35.5

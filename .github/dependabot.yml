@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Preserve security-only updates; do not enable unrelated version PRs.
+    open-pull-requests-limit: 0
+    groups:
+      vitest-security:
+        applies-to: security-updates
+        patterns:
+          - vitest
+          - "@vitest/*"
+          - vite
