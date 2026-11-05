@@ -1,5 +1,5 @@
 {
-  "name": "codex-subscription-oauth-plugin",
+  "name": "dsh-codex",
   "version": "0.1.9",
   "description": "Out-of-tree DSH bundle for ChatGPT Codex OAuth and live models",
   "private": false,
