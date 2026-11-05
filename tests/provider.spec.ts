@@ -1,28 +1,62 @@
 import { describe, expect, it } from 'vitest'
-import { toBundledCodexContext } from '../src/provider.ts'
+import { normalizeContext, type Provider } from '@earendil-works/pi-ai'
+import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
+import { createAssistantMessageEventStream } from '@earendil-works/pi-ai/utils/event-stream'
+import { providerWithModels } from '../src/provider.ts'
+
+/** Record the normalized context each streaming entry point receives. */
+function recordingProvider(calls: unknown[]): Provider {
+  const upstream = openaiCodexProvider()
+  const record = (_model: unknown, context: unknown): ReturnType<Provider['streamSimple']> => {
+    calls.push(context)
+    const stream = createAssistantMessageEventStream()
+    stream.end()
+    return stream
+  }
+  return { ...upstream, stream: record, streamSimple: record }
+}
 
 describe('Codex SDK context boundary', () => {
-  it('leaves the legacy envelope and caller-owned history intact', () => {
-    const context = { systemPrompt: 'Legacy prompt', tools: [], messages: [] }
-    expect(toBundledCodexContext(context)).toBe(context)
+  it('normalizes a prompt and tools into the leading system message', async () => {
+    const calls: unknown[] = []
+    const upstream = recordingProvider(calls)
+    const model = upstream.getModels().find(candidate => candidate.id === 'gpt-6-astra')!
+    const tools = [{ name: 'lookup', description: 'Look up a fact.', parameters: { type: 'object' as const } }]
+    const user = { role: 'user' as const, content: 'Hello', timestamp: 1 }
+
+    for await (const _event of providerWithModels(upstream, [model]).streamSimple(model, normalizeContext({
+      systemPrompt: 'Base',
+      tools,
+      messages: [user],
+    }))) {
+      // The recording provider ends the stream immediately.
+    }
+
+    expect(calls).toEqual([{
+      messages: [
+        { role: 'system', content: 'Base', toolsAdded: tools, timestamp: 0 },
+        user,
+      ],
+    }])
   })
 
-  it('replays system sections and tool additions/removals without mutating history', () => {
-    const removed = { name: 'old', description: 'Old tool', parameters: { type: 'object' as const } }
-    const replacement = { ...removed, name: 'lookup', description: 'Latest definition' }
-    const user = { role: 'user' as const, content: 'Hello', timestamp: 1 }
-    const context = {
+  it('passes an already normalized transcript through without collapsing it', async () => {
+    const calls: unknown[] = []
+    const upstream = recordingProvider(calls)
+    const model = upstream.getModels().find(candidate => candidate.id === 'gpt-6-astra')!
+    const context = normalizeContext({
       messages: [
-        { role: 'system' as const, content: 'Base', sections: { policy: 'Old', discarded: 'Remove me' }, toolsAdded: [removed], timestamp: 0 },
-        user,
-        { role: 'system' as const, content: [{ type: 'text' as const, text: 'Update' }],
-          sections: { policy: 'New', discarded: null }, toolsRemoved: [{ name: 'old' }], toolsAdded: [replacement], timestamp: 2 },
+        { role: 'system', content: 'Base', timestamp: 0 },
+        { role: 'user', content: 'First', timestamp: 1 },
+        { role: 'system', content: 'Later update', timestamp: 2 },
+        { role: 'user', content: 'Second', timestamp: 3 },
       ],
-    }
-    const original = structuredClone(context)
-    expect(toBundledCodexContext(context)).toEqual({
-      systemPrompt: 'Base\n\nUpdate\n\nNew', tools: [replacement], messages: [user],
     })
-    expect(context).toEqual(original)
+
+    for await (const _event of providerWithModels(upstream, [model]).streamSimple(model, context)) {
+      // The recording provider ends the stream immediately.
+    }
+
+    expect(calls).toEqual([{ messages: context.messages }])
   })
 })

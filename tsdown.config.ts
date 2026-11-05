@@ -18,7 +18,14 @@ export default defineConfig({
   deps: {
     // The published package must not require pi-ai's provider-wide dependency
     // graph. Inline only the Codex path and its streaming JSON parser.
-    alwaysBundle: [/^@earendil-works\/pi-ai(?:\/|$)/],
-    onlyBundle: [/^@earendil-works\/pi-ai(?:\/|$)/, /^partial-json$/],
+    alwaysBundle: [
+      /^@earendil-works\/pi-ai(?:\/|$)/,
+      /^@earendil-works\/pi-telemetry(?:\/|$)/,
+    ],
+    onlyBundle: [
+      /^@earendil-works\/pi-ai(?:\/|$)/,
+      /^@earendil-works\/pi-telemetry(?:\/|$)/,
+      /^partial-json$/,
+    ],
   },
 })

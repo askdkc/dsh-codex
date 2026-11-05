@@ -2,21 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import * as sourcePlugin from '../src/index.ts'
-import type { Context as PiContext } from '@earendil-works/pi-ai'
-
-// SDK 0.87 normalizes the host's prompt/tools into a system transcript entry
-// before calling the plugin-owned provider, whose bundled SDK is 0.85.
-vi.mock('@earendil-works/pi-ai/providers/all', async importOriginal => {
-  const actual = await importOriginal<typeof import('@earendil-works/pi-ai/providers/all')>()
-  return { ...actual, builtinModels: (...args: Parameters<typeof actual.builtinModels>) => {
-    const models = actual.builtinModels(...args)
-    const streamSimple = models.streamSimple.bind(models)
-    models.streamSimple = (model, context, options) => streamSimple(model, {
-      messages: [{ role: 'system', content: context.systemPrompt ?? '', toolsAdded: context.tools, timestamp: 0 }, ...context.messages],
-    } as unknown as PiContext, options)
-    return models
-  } }
-})
 
 const contexts: Context[] = []
 const access = `header.${Buffer.from(JSON.stringify({
@@ -64,10 +49,25 @@ describe.each(['source', 'built'] as const)('%s Codex transport', artifact => {
       expect(payload).toMatchObject({
         model, instructions: 'Answer briefly.',
         reasoning: { effort: 'max' },
-        ...(withTools ? { tools: [{ type: 'function', name: 'lookup', parameters: { type: 'object' } }] } : {}),
-        input: [{ role: 'user', content: [{ type: 'input_text', text: 'バーニラバニラバーニラ！' }] }],
       })
-      if (!withTools) expect(payload).not.toHaveProperty('tools')
+      expect(payload.input).toContainEqual({
+        role: 'user',
+        content: [{ type: 'input_text', text: 'バーニラバニラバーニラ！' }],
+      })
+      expect(payload).not.toHaveProperty('tools')
+      if (withTools) {
+        expect(payload.input).toContainEqual(expect.objectContaining({
+          type: 'additional_tools',
+          role: 'developer',
+          tools: [expect.objectContaining({
+            type: 'function',
+            name: 'lookup',
+            parameters: expect.objectContaining({ type: 'object' }),
+          })],
+        }))
+      } else {
+        expect(payload.input).toHaveLength(1)
+      }
       return reply()
     })
     vi.stubGlobal('fetch', fetchMock)

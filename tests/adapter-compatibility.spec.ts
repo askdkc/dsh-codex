@@ -51,7 +51,7 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
       model: { context: { contextWindow: 500000 }, inputModalities: ['text', 'image'] },
     })
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6.1-terra')).resolves.toMatchObject({
-      reasoning: { efforts: ['low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
+      reasoning: { efforts: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
     })
     for (const model of fallback) {
       await expect(ctx.llm.resolveModelInfo('openai-codex', model.id)).resolves.toMatchObject({

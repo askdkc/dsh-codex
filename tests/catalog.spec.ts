@@ -45,35 +45,58 @@ afterEach(() => {
 })
 
 describe('live Codex catalog', () => {
-  it('ships Astra in the executable fallback catalog', () => {
+  it('ships every latest list-visible Codex model with executable metadata', () => {
     const models = catalog({ resolveCredential: async () => undefined }).current.models
 
-    expect(models.map(model => model.id)).toContain('gpt-6-astra')
+    expect(models.map(model => model.id)).toEqual([
+      'gpt-5.6-luna',
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-6-astra',
+      'gpt-6-luna',
+      'gpt-6-sol',
+      'gpt-6.1-sol',
+      'gpt-6.1-terra',
+    ])
     expect(models.find(model => model.id === 'gpt-6-astra')).toMatchObject({
       name: 'GPT-6 Astra',
       contextWindow: 272000,
       maxTokens: 128000,
     })
+    expect(models.find(model => model.id === 'gpt-6.1-sol')).toMatchObject({
+      name: 'GPT-6.1 Sol',
+      contextWindow: 500000,
+      maxTokens: 128000,
+      input: ['text', 'image'],
+      cost: { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
+    })
+    expect(models.find(model => model.id === 'gpt-6.1-terra')).toMatchObject({
+      name: 'GPT-6.1 Terra',
+      contextWindow: 500000,
+      maxTokens: 128000,
+      input: ['text', 'image'],
+      cost: { input: 1, output: 5, cacheRead: 0.05, cacheWrite: 1.25 },
+    })
   })
 
   it('publishes the account-visible intersection in official order', async () => {
     const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => response([
-      listed('gpt-6-astra', 1),
+      listed('gpt-6.1-sol', 2),
       listed('future-without-local-transport-metadata'),
-      listed('gpt-5.6-luna', 2),
-      { ...listed('gpt-5.5'), visibility: 'hide' },
-      { ...listed('gpt-5.4'), supported_in_api: false },
+      listed('gpt-6-sol', 1),
+      { ...listed('gpt-6-luna'), visibility: 'hide' },
+      { ...listed('gpt-6-astra', 3), supported_in_api: false },
     ], { headers: { etag: '"catalog-v1"' } }))
     const created = catalog({ fetch: fetchMock })
 
     await created.start()
 
     expect(created.current.source).toBe('live')
-    expect(created.current.models.map(model => model.id)).toEqual(['gpt-5.4', 'gpt-6-astra', 'gpt-5.6-luna'])
+    expect(created.current.models.map(model => model.id)).toEqual(['gpt-6-sol', 'gpt-6.1-sol', 'gpt-6-astra'])
     expect(created.current.models.map(model => model.name)).toEqual([
-      'Live gpt-5.4',
+      'Live gpt-6-sol',
+      'Live gpt-6.1-sol',
       'Live gpt-6-astra',
-      'Live gpt-5.6-luna',
     ])
     const [url, init] = fetchMock.mock.calls[0] ?? []
     expect(url).toBe('https://chatgpt.com/backend-api/codex/models?client_version=99.99.99')

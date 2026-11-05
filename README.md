@@ -66,7 +66,9 @@ pnpm dsh plugin --profile web remove codex-subscription-oauth-plugin
 
 ## Models and connection diagnostics
 
-GPT-6.1 Terra uses its own [Codex catalog metadata](https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json): a 500,000-token default context, text/image input, and low through max reasoning supported by this adapter. Its output cap and cost estimate come from the [Terra model page](https://developers.openai.com/api/docs/models/gpt-6.1-terra) and [API pricing](https://developers.openai.com/api/docs/pricing), rather than Astra. Account visibility still comes from the authenticated catalog. Unknown entries without executable output/cost metadata emit `MODEL_METADATA_MISSING`; their capabilities are not guessed from another model.
+The plugin bundles the pi-ai 1.5.0 Codex catalog, so every model the authenticated Codex endpoint currently lists as visible has executable metadata without a manual model table: GPT-5.6 Luna, Sol, and Terra; GPT-6 Astra, Luna, and Sol; and GPT-6.1 Sol and Terra. Account visibility and ordering still come from the authenticated catalog at `https://chatgpt.com/backend-api/codex/models`; an account that cannot see a model does not receive it.
+
+GPT-6.1 Sol and Terra use the Codex default 500,000-token context, 128,000-token output capacity, text and image input, and the reasoning levels recorded in the catalog. Their prices come from the OpenAI API model pages. Unknown entries that the live endpoint lists but the bundled catalog cannot execute emit `MODEL_METADATA_MISSING` and stay hidden; their capabilities are not guessed from another model.
 
 Connection failures retain the SDK's before/after-start phase, fallback choice and safe error code. Raw close reasons, stacks, headers and bodies are omitted from these diagnostics. The SDK may switch to SSE before its first response event; the plugin adds no retries and does not replay an interrupted response or tool output. Cancellation stays cancelled, and an SSE HTTP error retains its status for the host's classification.
 

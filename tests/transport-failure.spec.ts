@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { normalizeContext } from '@earendil-works/pi-ai'
 import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { providerWithModels } from '../src/provider.ts'
 import { sockets, sse } from './fixtures/websocket.ts'
@@ -25,7 +26,7 @@ describe('real Codex SDK WebSocket boundary', () => {
           throw new Error('Bearer synthetic-secret')
         },
       }
-      const stream = providerWithModels(failing, [model])[method](model, { messages: [] })
+      const stream = providerWithModels(failing, [model])[method](model, normalizeContext({ messages: [] }))
       const events = []
       for await (const event of stream) events.push(event)
       expect(events.at(-1)).toMatchObject({ type: 'error', error: { errorMessage: 'Codex provider stream failed' } })
@@ -45,7 +46,7 @@ describe('real Codex SDK WebSocket boundary', () => {
       const events = []
       for await (const event of provider[method](
         model,
-        { messages: [{ role: 'user', content: 'Hi', timestamp: 0 }] },
+        normalizeContext({ messages: [{ role: 'user', content: 'Hi', timestamp: 0 }] }),
         {
           apiKey: access,
           env: {},
@@ -72,10 +73,10 @@ describe('real Codex SDK WebSocket boundary', () => {
     const events = []
     const stream = providerWithModels(upstream, [model], warn).streamSimple(
       model,
-      {
+      normalizeContext({
         messages: [{ role: 'user', content: 'Hi', timestamp: 0 }],
         tools: [{ name: 'lookup', description: 'Read a value', parameters: { type: 'object', properties: {} } }],
-      },
+      }),
       { apiKey: access, env: {}, transport: 'auto', maxRetries: 0 },
     )
     for await (const event of stream) events.push(event)
@@ -101,9 +102,9 @@ describe('real Codex SDK WebSocket boundary', () => {
     const events = []
     for await (const event of providerWithModels(upstream, [model]).streamSimple(
       model,
-      {
+      normalizeContext({
         messages: [{ role: 'user', content: 'Hi', timestamp: 0 }],
-      },
+      }),
       { apiKey: access, env: {}, transport: 'auto', maxRetries: 0 },
     ))
       events.push(event)
@@ -122,9 +123,9 @@ describe('real Codex SDK WebSocket boundary', () => {
     const events = []
     for await (const event of providerWithModels(upstream, [model]).streamSimple(
       model,
-      {
+      normalizeContext({
         messages: [{ role: 'user', content: 'Hi', timestamp: 0 }],
-      },
+      }),
       { apiKey: access, env: {}, signal: controller.signal, transport: 'auto', maxRetries: 0 },
     )) {
       events.push(event)

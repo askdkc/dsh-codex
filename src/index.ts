@@ -62,6 +62,8 @@ const DEFAULT_TIMEOUT_MS = 15 * 1000
 const MAX_TIMER_DELAY_MS = 2_147_483_647
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 5 * 60 * 1000
 const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+const DEFAULT_MAX_REQUEST_IMAGES = 50
+const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 10
 const DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
@@ -275,62 +277,9 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   }
 }
 
-/** Supply executable metadata for GPT-6 models missing from the pinned pi-ai catalog. */
+/** Use the SDK's Codex catalog, which carries the latest executable model metadata. */
 function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
-  const models = provider.getModels() as readonly Model<Api>[]
-  const astra = models.find(model => model.id === 'gpt-6-astra')
-  if (astra === undefined) throw new Error('codex-subscription-oauth: missing GPT-6 transport metadata')
-  const additions = [
-    { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
-    { id: 'gpt-6-sol', name: 'GPT-6 Sol', input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-    { id: 'gpt-6-luna', name: 'GPT-6 Luna', input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
-  ] as const
-  return Object.freeze([
-    ...models,
-    ...additions.filter(entry => !models.some(model => model.id === entry.id)).map(entry => Object.freeze({
-      ...astra,
-      id: entry.id,
-      name: entry.name,
-      thinkingLevelMap: {
-        off: null,
-        ...(entry.id === 'gpt-6.1-sol' ? { minimal: null } : {}),
-        low: 'low',
-        medium: 'medium',
-        high: 'high',
-        xhigh: 'xhigh',
-        max: 'max',
-      },
-      cost: {
-        input: entry.input,
-        output: entry.output,
-        cacheRead: entry.cacheRead,
-        cacheWrite: entry.cacheWrite,
-        tiers: [{
-          inputTokensAbove: 272000,
-          input: entry.input * 2,
-          output: entry.output * 1.5,
-          cacheRead: entry.cacheRead * 2,
-          cacheWrite: entry.cacheWrite * 2,
-        }],
-      },
-    })),
-    // Codex models-manager/models.json supplies Terra's own context, input and
-    // reasoning metadata; the API model/pricing pages supply its output cap
-    // and cost estimate. Do not inherit Astra's capabilities or prices.
-    ...models.some(model => model.id === 'gpt-6.1-terra') ? [] : [{
-      id: 'gpt-6.1-terra',
-      name: 'GPT-6.1 Terra',
-      api: 'openai-codex-responses' as const,
-      provider: ROUTE,
-      baseUrl: 'https://chatgpt.com/backend-api',
-      reasoning: true,
-      input: ['text', 'image'] as ('text' | 'image')[],
-      contextWindow: 500000,
-      maxTokens: 128000,
-      thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
-      cost: { input: 1, output: 5, cacheRead: 0.05, cacheWrite: 1.25 },
-    }],
-  ])
+  return Object.freeze([...provider.getModels()])
 }
 
 /** Build the one profile shape consumed by DSH's public pi-ai adapter. */
@@ -346,6 +295,8 @@ function profileFor(
       displayName: provider.name,
       streamIdleTimeoutMs: DEFAULT_STREAM_IDLE_TIMEOUT_MS,
       maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
+      maxRequestImages: DEFAULT_MAX_REQUEST_IMAGES,
+      imageOffloadCountQuantum: DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
       requestImagePixelBudget: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
       requestImageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
       retryPolicy: resolveRetryPolicy(undefined, `codex-subscription-oauth: provider "${ROUTE}" retryPolicy`),

@@ -85,28 +85,31 @@ describe('real Cordis authorization composition', () => {
     const { ctx } = await harness()
 
     await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
-      { id: 'gpt-5.3-codex-spark' },
-      { id: 'gpt-5.4' },
-      { id: 'gpt-5.4-mini' },
-      { id: 'gpt-5.5' },
       { id: 'gpt-5.6-luna' },
       { id: 'gpt-5.6-sol' },
       { id: 'gpt-5.6-terra' },
       { id: 'gpt-6-astra', name: 'GPT-6 Astra', inputModalities: ['text', 'image'] },
-      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputModalities: ['text', 'image'] },
-      { id: 'gpt-6-sol', name: 'GPT-6 Sol', inputModalities: ['text', 'image'] },
       { id: 'gpt-6-luna', name: 'GPT-6 Luna', inputModalities: ['text', 'image'] },
+      { id: 'gpt-6-sol', name: 'GPT-6 Sol', inputModalities: ['text', 'image'] },
+      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputModalities: ['text', 'image'] },
       { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', inputModalities: ['text', 'image'] },
     ])
-    for (const id of ['gpt-6-sol', 'gpt-6-luna', 'gpt-6.1-sol']) {
+    for (const id of ['gpt-6-sol', 'gpt-6-luna']) {
       await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({
         provider: 'openai-codex', id,
         inputModalities: ['text', 'image'],
         context: { contextWindow: 272000 },
       })
     }
+    for (const id of ['gpt-6.1-sol', 'gpt-6.1-terra']) {
+      await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({
+        provider: 'openai-codex', id,
+        inputModalities: ['text', 'image'],
+        context: { contextWindow: 500000 },
+      })
+    }
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6.1-sol')).resolves.toMatchObject({
-      reasoning: { efforts: ['low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
+      reasoning: { efforts: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
     })
     await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6-astra')).resolves.toEqual({
       provider: 'openai-codex',
@@ -124,6 +127,8 @@ describe('real Cordis authorization composition', () => {
           { id: 'max', name: 'Max' },
         ],
       },
+      systemPromptUpdate: 'in-history',
+      toolUpdate: 'addition-only',
     })
   })
 

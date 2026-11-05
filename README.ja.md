@@ -66,7 +66,9 @@ pnpm dsh plugin --profile web remove codex-subscription-oauth-plugin
 
 ## モデルと接続診断
 
-GPT-6.1 Terraには、Astraからのコピーではなく[公式Codexカタログ](https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json)の通常コンテキスト500,000、テキスト・画像入力と、本アダプターで扱えるlow〜maxのreasoning情報を使用します。出力上限と価格の見積りは[Terraのモデル情報](https://developers.openai.com/api/docs/models/gpt-6.1-terra)と[API価格](https://developers.openai.com/api/docs/pricing)に基づきます。アカウントでの表示可否は認証済みカタログで決まります。実行に必要な出力上限・価格情報がない未知モデルには `MODEL_METADATA_MISSING` を出し、他モデルの能力を推測でコピーしません。
+プラグインはpi-ai 1.5.0のCodexカタログを同梱しているため、認証済みCodexエンドポイントが表示対象として返すモデルには、手書きのモデル表なしで実行に必要なメタデータが揃います。対象はGPT-5.6 Luna・Sol・Terra、GPT-6 Astra・Luna・Sol、GPT-6.1 Sol・Terraです。アカウントごとの表示可否と順序は認証済みカタログ（`https://chatgpt.com/backend-api/codex/models`）が決め、表示できないモデルは追加されません。
+
+GPT-6.1 SolとTerraは、Codex既定の500,000トークンのコンテキスト、128,000トークンの出力上限、テキスト・画像入力、カタログに記録されたreasoningレベルを使います。価格はOpenAI APIのモデルページに基づきます。ライブ一覧にあっても同梱カタログで実行できない未知のモデルには `MODEL_METADATA_MISSING` を出して非表示にし、他モデルの能力を推測して流用しません。
 
 接続失敗には、SDKの開始前・開始後の段階、SSE切替の有無と安全なエラーコードを残します。診断には生のclose理由・stack・header・本文を含めません。最初の応答イベントより前ではSDKがSSEに切り替えることがありますが、プラグインは再試行を追加せず、途中の応答やツール出力を再送しません。キャンセルを維持し、SSEのHTTPエラーではホストが分類できるようstatusを保持します。
 
