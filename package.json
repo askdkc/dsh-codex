@@ -1,6 +1,6 @@
 {
   "name": "@askdkc/dsh-codex",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Out-of-tree DSH bundle for ChatGPT Codex OAuth and live models",
   "private": false,
   "license": "MIT",
