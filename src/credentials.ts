@@ -7,12 +7,12 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  credentialKey,
   credentialKeyId,
   credentialKeyScope,
   isCredentialKeySegment,
   type CredentialRecord,
 } from '@deepseek-ai/dsh-credentials'
-import { recordKeyFor } from '@deepseek-ai/dsh-llm-pi-ai'
 import type {
   AuthContext,
   Credential,
@@ -20,6 +20,10 @@ import type {
 } from '@earendil-works/pi-ai'
 
 const RECORD_SCOPE = 'llm-pi-ai'
+
+// Match llm-pi-ai's record address using the public credentials API. Its
+// recordKeyFor helper is internal and is no longer exported by the package.
+const recordKeyFor = (providerId: string) => credentialKey(RECORD_SCOPE, providerId)
 
 /** Remove explicitly undefined plain-object members before durable storage. */
 function jsonImage(value: unknown): unknown {
