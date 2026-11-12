@@ -7,15 +7,25 @@ English | [日本語](./README.ja.md)
 Install the plugin from a DeepSeek Harness checkout:
 
 ```sh
-pnpm dsh plugin --profile web add github:askdkc/dsh-codex
+pnpm dsh plugin --profile web add '@askdkc/dsh-codex@github:askdkc/dsh-codex' --config.minimumReleaseAge=0 --ignore-scripts
 ```
 
 Replace `web` with the target profile name, then restart that profile.
 
+`--config.minimumReleaseAge=0` disables pnpm's minimum package release age for this command, including the 24-hour wait when configured. `--ignore-scripts` skips install scripts for this operation; this plugin ships prebuilt `lib` files and needs no install-time build. Place both flags after `dsh plugin` so they reach the profile's pnpm command. These flags do not change global settings.
+
+To update an existing GitHub installation to the latest commit:
+
+```sh
+pnpm dsh plugin --profile web update @askdkc/dsh-codex --latest --config.minimumReleaseAge=0 --ignore-scripts
+```
+
+If the existing dependency is pinned to a tag or commit, rerun the `add` command above to switch to the default branch. Restart DSH after the command succeeds. Updating another plugin does not update dsh-codex.
+
 For ACP, install the plugin in the ACP profile too:
 
 ```sh
-pnpm dsh plugin --profile acp add github:askdkc/dsh-codex
+pnpm dsh plugin --profile acp add '@askdkc/dsh-codex@github:askdkc/dsh-codex' --config.minimumReleaseAge=0 --ignore-scripts
 ```
 
 Profiles load plugins independently: installing into `web` does not add models to `acp`. Restart the DSH process launched by your ACP client, then reopen its model selector. If the client uses a different profile, replace `acp` with that name.
@@ -31,10 +41,10 @@ Change an existing `codex-subscription-oauth-plugin: true` to `false`. Delete an
 
 Unlike a name-only `true`, a name-only `false` also applies to Git dependencies: pnpm records an explicit decision to skip the scripts, so updates do not require commit-hash edits. This recovery works with pnpm 11.7.0; upgrading pnpm is not required. See pnpm's [Git dependency build settings](https://pnpm.io/settings/build#allowbuilds).
 
-Then rerun the failed `pnpm dsh plugin ...` command from the DeepSeek Harness checkout. Even an update of another plugin checks this profile's dependencies; for example, retry a failed Kiokuko update with:
+Then rerun the failed `pnpm dsh plugin ...` command from the DeepSeek Harness checkout. Even an update of another plugin checks this profile's dependencies; for example, retry the dsh-codex update with:
 
 ```sh
-pnpm dsh plugin --profile web update kiokuko-dsh --latest
+pnpm dsh plugin --profile web update @askdkc/dsh-codex --latest --config.minimumReleaseAge=0 --ignore-scripts
 ```
 
 Wait for the command to exit successfully. `Already up to date` can appear before a build-policy error and does not by itself mean the update succeeded.
@@ -44,8 +54,8 @@ Use the same profile for the configuration edit and retry; adjust the path for a
 If installation into an existing ACP profile fails with `ERR_PNPM_UNEXPECTED_STORE`, reinstall that profile's dependencies using the current pnpm store, then retry:
 
 ```sh
-pnpm --dir ~/.dsh/profiles/acp install --force --frozen-lockfile
-pnpm dsh plugin --profile acp add github:askdkc/dsh-codex
+pnpm --dir ~/.dsh/profiles/acp install --force --frozen-lockfile --config.minimumReleaseAge=0 --ignore-scripts
+pnpm dsh plugin --profile acp add '@askdkc/dsh-codex@github:askdkc/dsh-codex' --config.minimumReleaseAge=0 --ignore-scripts
 ```
 
 The first command rebuilds the profile's `node_modules` without changing its lockfile. If it fails, resolve that error before retrying the plugin installation. If you use a custom `DSH_HOME` or profile name, adjust both commands. The `allowBuilds` hint printed after a store mismatch does not fix this error.
@@ -61,7 +71,7 @@ Complete the browser login. If the localhost callback cannot reach DSH, paste th
 Remove the plugin:
 
 ```sh
-pnpm dsh plugin --profile web remove codex-subscription-oauth-plugin
+pnpm dsh plugin --profile web remove @askdkc/dsh-codex
 ```
 
 ## Models and connection diagnostics
