@@ -1,6 +1,9 @@
 /** Authenticated OpenAI Codex model-catalog refresh and publication. */
 import type { Api, Model } from '@earendil-works/pi-ai'
 
+import { isDeepStrictEqual } from 'node:util'
+import { liveCodexModel } from './models.ts'
+
 const MODEL_LIST_URL = 'https://chatgpt.com/backend-api/codex/models?client_version=99.99.99'
 const MAX_RESPONSE_BYTES = 1024 * 1024
 const MAX_MODEL_ID_CHARS = 200
@@ -34,6 +37,7 @@ export interface CodexCatalogOptions {
 }
 
 interface OfficialModel {
+  readonly row: Record<string, unknown>
   readonly slug: string
   readonly name?: string
   readonly priority: number
@@ -41,7 +45,7 @@ interface OfficialModel {
 
 /**
  * Own one live account-scoped list. The official endpoint decides visibility
- * and order; the installed pi-ai catalog decides whether DSH can execute it.
+ * and order. The installed SDK supplies optional metadata for known IDs.
  */
 export class CodexCatalog {
   private readonly baseline: readonly Model<Api>[]
@@ -200,23 +204,8 @@ export class CodexCatalog {
         throw Object.assign(new Error('invalid model response JSON'), { code: 'INVALID_JSON' })
       }
       const official = parseOfficialModels(payload)
-      if (official.length === 0) throw Object.assign(new Error('empty model list'), { code: 'EMPTY_LIST' })
-      // A list entry alone does not declare an output cap or pricing. Explain
-      // missing executable metadata instead of silently hiding new models or
-      // guessing their capabilities from an unrelated model.
-      const missing = official.filter(entry => !this.baselineById.has(entry.slug)).length
-      if (missing > 0) this.warn(`codex-subscription-oauth: MODEL_METADATA_MISSING (${missing} listed models)`)
-      const models = official
-        .map(entry => {
-          const baseline = this.baselineById.get(entry.slug)
-          if (baseline === undefined) return undefined
-          if (entry.name === undefined || entry.name === baseline.name) return baseline
-          return Object.freeze({ ...baseline, name: entry.name })
-        })
-        .filter((model): model is Model<Api> => model !== undefined)
-      if (models.length === 0) {
-        throw Object.assign(new Error('no executable model metadata'), { code: 'NO_EXECUTABLE_MODELS' })
-      }
+      const models = official.map(({ slug, name, row }) =>
+        liveCodexModel(slug, name, row, this.baselineById.get(slug)))
       this.etag = boundedHeader(response.headers.get('etag'))
       this.publish('live', Object.freeze(models))
     } catch (error) {
@@ -234,7 +223,7 @@ export class CodexCatalog {
   private publish(source: CodexCatalogSnapshot['source'], models: readonly Model<Api>[]): void {
     if (this.disposed) return
     const previous = this.snapshotValue
-    if (previous.source === source && sameModels(previous.models, models)) return
+    if (previous.source === source && isDeepStrictEqual(previous.models, models)) return
     this.revision += 1
     const snapshot = Object.freeze({ source, models, revision: this.revision })
     this.snapshotValue = snapshot
@@ -274,7 +263,7 @@ export function parseOfficialModels(payload: unknown): readonly OfficialModel[] 
     const priority = typeof value.priority === 'number' && Number.isSafeInteger(value.priority)
       ? value.priority
       : index
-    models.push(Object.freeze({ slug, ...(name === undefined ? {} : { name }), priority }))
+    models.push(Object.freeze({ row: value, slug, ...(name === undefined ? {} : { name }), priority }))
   }
   return Object.freeze(models.sort((left, right) => left.priority - right.priority))
 }
@@ -325,13 +314,6 @@ async function readBoundedText(response: Response, maxBytes: number): Promise<st
 
 function boundedHeader(value: string | null): string | undefined {
   return value !== null && value.length > 0 && value.length <= 1024 ? value : undefined
-}
-
-function sameModels(left: readonly Model<Api>[], right: readonly Model<Api>[]): boolean {
-  return left.length === right.length && left.every((model, index) => {
-    const candidate = right[index]
-    return model.id === candidate?.id && model.name === candidate.name
-  })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

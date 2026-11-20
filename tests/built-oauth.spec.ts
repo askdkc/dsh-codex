@@ -32,7 +32,7 @@ describe('built Codex OAuth entry', () => {
       'https://auth.openai.com/oauth/token',
       'https://chatgpt.com/backend-api/codex/models?client_version=99.99.99',
     ])
-    expect(result.models).toEqual(['gpt-6-astra'])
+    expect(result.models).toEqual(['gpt-6.2-sol', 'gpt-6.2-astra'])
     expect(result.record).toMatchObject({
       kind: 'grant',
       payload: {

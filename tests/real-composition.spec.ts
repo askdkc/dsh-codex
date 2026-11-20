@@ -132,16 +132,18 @@ describe('real Cordis authorization composition', () => {
     })
   })
 
-  it('replaces the fallback with the authenticated account-visible intersection', async () => {
+  it('replaces the fallback with the authenticated account-visible list', async () => {
     const accountPayload = Buffer.from(JSON.stringify({
       'https://api.openai.com/auth': { chatgpt_account_id: 'account-123' },
     })).toString('base64url')
     const access = `header.${accountPayload}.signature`
     const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => new Response(JSON.stringify({
       models: [
+        { slug: 'gpt-6.2-astra', visibility: 'list', supported_in_api: true },
         { slug: 'gpt-6-astra', visibility: 'list', supported_in_api: true },
         { slug: 'gpt-6-sol', visibility: 'list', supported_in_api: true },
         { slug: 'gpt-6-luna', visibility: 'list', supported_in_api: true },
+        { slug: 'gpt-6.2-sol', visibility: 'list', supported_in_api: true },
         { slug: 'future-without-transport-metadata', visibility: 'list', supported_in_api: true },
         { slug: 'gpt-5.6-luna', visibility: 'list', supported_in_api: true },
       ],
@@ -158,9 +160,12 @@ describe('real Cordis authorization composition', () => {
     })
 
     await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
+      { id: 'gpt-6.2-astra' },
       { id: 'gpt-6-astra' },
       { id: 'gpt-6-sol' },
       { id: 'gpt-6-luna' },
+      { id: 'gpt-6.2-sol' },
+      { id: 'future-without-transport-metadata' },
       { id: 'gpt-5.6-luna' },
     ])
     expect(fetchMock).toHaveBeenCalledOnce()

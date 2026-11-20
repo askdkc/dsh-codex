@@ -76,9 +76,7 @@ pnpm dsh plugin --profile web remove @askdkc/dsh-codex
 
 ## Models and connection diagnostics
 
-The plugin bundles the pi-ai 1.5.0 Codex catalog, so every model the authenticated Codex endpoint currently lists as visible has executable metadata without a manual model table: GPT-5.6 Luna, Sol, and Terra; GPT-6 Astra, Luna, and Sol; and GPT-6.1 Sol and Terra. Account visibility and ordering still come from the authenticated catalog at `https://chatgpt.com/backend-api/codex/models`; an account that cannot see a model does not receive it.
-
-GPT-6.1 Sol and Terra use the Codex default 500,000-token context, 128,000-token output capacity, text and image input, and the reasoning levels recorded in the catalog. Their prices come from the OpenAI API model pages. Unknown entries that the live endpoint lists but the bundled catalog cannot execute emit `MODEL_METADATA_MISSING` and stay hidden; their capabilities are not guessed from another model.
+The plugin fetches the signed-in account’s model list from `https://chatgpt.com/backend-api/codex/models`. Every picker-visible model is available in OpenAI’s priority order, including IDs added after the plugin was built. The bundled SDK catalog provides offline defaults and extra metadata for known models.
 
 Connection failures retain the SDK's before/after-start phase, fallback choice and safe error code. Raw close reasons, stacks, headers and bodies are omitted from these diagnostics. The SDK may switch to SSE before its first response event; the plugin adds no retries and does not replay an interrupted response or tool output. Cancellation stays cancelled, and an SSE HTTP error retains its status for the host's classification.
 

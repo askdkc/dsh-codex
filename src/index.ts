@@ -277,11 +277,6 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   }
 }
 
-/** Use the SDK's Codex catalog, which carries the latest executable model metadata. */
-function bundledCodexModels(provider: Provider): readonly Model<Api>[] {
-  return Object.freeze([...provider.getModels()])
-}
-
 /** Build the one profile shape consumed by DSH's public pi-ai adapter. */
 function profileFor(
   provider: Provider,
@@ -319,7 +314,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   })
 
   const upstream = openaiCodexProvider()
-  const bundledModels = bundledCodexModels(upstream)
+  const bundledModels = upstream.getModels()
   const auth = {
     credentials: credentialStoreFrom(ctx),
     authContext: codexAuthContext(),

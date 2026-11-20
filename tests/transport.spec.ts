@@ -35,11 +35,14 @@ describe.each(['source', 'built'] as const)('%s Codex transport', artifact => {
     ['gpt-6-luna', false], ['gpt-6-luna', true],
     ['gpt-6.1-sol', false], ['gpt-6.1-sol', true],
     ['gpt-6.1-terra', false], ['gpt-6.1-terra', true],
+    ['gpt-6.2-astra', false], ['gpt-6.2-astra', true],
+    ['new-codex-model', true],
+    ['gpt-6.2-sol', false], ['gpt-6.2-sol', true],
   ] as const)('sends %s with system instructions (tools=%s) through the real adapter and SDK', async (model, withTools) => {
     const plugin = artifact === 'source' ? sourcePlugin : await import('../lib/index.js')
     const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       if (String(url).includes('/codex/models')) return new Response(JSON.stringify({
-        models: [{ slug: model, visibility: 'list' }],
+        models: [{ slug: model, visibility: 'list', tool_mode: 'code_mode_only', supported_reasoning_levels: [{ effort: 'max' }] }],
       }))
       const { zstdDecompressSync } = await import('node:zlib')
       const body = init?.body instanceof Uint8Array

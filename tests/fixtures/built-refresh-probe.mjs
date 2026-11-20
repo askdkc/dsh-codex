@@ -49,7 +49,11 @@ try {
         throw new Error('catalog request did not use refreshed OAuth facts')
       }
       return new Response(JSON.stringify({
-        models: [{ slug: 'gpt-6-astra', visibility: 'list', supported_in_api: true }],
+        models: [
+          { slug: 'gpt-6.2-sol', visibility: 'list', priority: 1 },
+          { slug: 'gpt-6-astra', visibility: 'hide', priority: 0 },
+          { slug: 'gpt-6.2-astra', visibility: 'list', priority: 2 },
+        ],
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     }
     throw new Error(`unexpected request: ${url}`)

@@ -45,45 +45,13 @@ afterEach(() => {
 })
 
 describe('live Codex catalog', () => {
-  it('ships every latest list-visible Codex model with executable metadata', () => {
-    const models = catalog({ resolveCredential: async () => undefined }).current.models
-
-    expect(models.map(model => model.id)).toEqual([
-      'gpt-5.6-luna',
-      'gpt-5.6-sol',
-      'gpt-5.6-terra',
-      'gpt-6-astra',
-      'gpt-6-luna',
-      'gpt-6-sol',
-      'gpt-6.1-sol',
-      'gpt-6.1-terra',
-    ])
-    expect(models.find(model => model.id === 'gpt-6-astra')).toMatchObject({
-      name: 'GPT-6 Astra',
-      contextWindow: 272000,
-      maxTokens: 128000,
-    })
-    expect(models.find(model => model.id === 'gpt-6.1-sol')).toMatchObject({
-      name: 'GPT-6.1 Sol',
-      contextWindow: 500000,
-      maxTokens: 128000,
-      input: ['text', 'image'],
-      cost: { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
-    })
-    expect(models.find(model => model.id === 'gpt-6.1-terra')).toMatchObject({
-      name: 'GPT-6.1 Terra',
-      contextWindow: 500000,
-      maxTokens: 128000,
-      input: ['text', 'image'],
-      cost: { input: 1, output: 5, cacheRead: 0.05, cacheWrite: 1.25 },
-    })
-  })
-
-  it('publishes the account-visible intersection in official order', async () => {
+  it('publishes the full account-visible list in official order', async () => {
     const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => response([
+      listed('gpt-6.2-sol', 4),
       listed('gpt-6.1-sol', 2),
       listed('future-without-local-transport-metadata'),
       listed('gpt-6-sol', 1),
+      listed('gpt-6.2-astra', 0),
       { ...listed('gpt-6-luna'), visibility: 'hide' },
       { ...listed('gpt-6-astra', 3), supported_in_api: false },
     ], { headers: { etag: '"catalog-v1"' } }))
@@ -92,11 +60,21 @@ describe('live Codex catalog', () => {
     await created.start()
 
     expect(created.current.source).toBe('live')
-    expect(created.current.models.map(model => model.id)).toEqual(['gpt-6-sol', 'gpt-6.1-sol', 'gpt-6-astra'])
+    expect(created.current.models.map(model => model.id)).toEqual([
+      'future-without-local-transport-metadata',
+      'gpt-6.2-astra',
+      'gpt-6-sol',
+      'gpt-6.1-sol',
+      'gpt-6-astra',
+      'gpt-6.2-sol',
+    ])
     expect(created.current.models.map(model => model.name)).toEqual([
+      'Live future-without-local-transport-metadata',
+      'Live gpt-6.2-astra',
       'Live gpt-6-sol',
       'Live gpt-6.1-sol',
       'Live gpt-6-astra',
+      'Live gpt-6.2-sol',
     ])
     const [url, init] = fetchMock.mock.calls[0] ?? []
     expect(url).toBe('https://chatgpt.com/backend-api/codex/models?client_version=99.99.99')
@@ -127,22 +105,21 @@ describe('live Codex catalog', () => {
     })
   })
 
-  it('retains the last usable generation when the source is empty or unexecutable', async () => {
-    const warn = vi.fn()
+  it('refreshes capabilities for the same new ID and honors an empty visible list', async () => {
+    const row = { ...listed('new-model'), input_modalities: ['text', 'image'], context_window: 600000,
+      supported_reasoning_levels: [{ effort: 'high' }] }
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(response([listed('gpt-6-astra')]))
-      .mockResolvedValueOnce(response([listed('future-without-metadata')]))
-      .mockResolvedValueOnce(response([]))
-    const created = catalog({ fetch: fetchMock, warn })
+      .mockResolvedValueOnce(response([row]))
+      .mockResolvedValueOnce(response([{ ...row, context_window: 800000 }]))
+      .mockResolvedValueOnce(response([{ ...row, visibility: 'hide' }]))
+    const created = catalog({ fetch: fetchMock })
     await created.start()
-
+    expect(created.current.models[0]).toMatchObject({ id: 'new-model', contextWindow: 600000,
+      input: ['text', 'image'], reasoning: true, thinkingLevelMap: { high: 'high', max: null } })
     await created.forceRefresh()
+    expect(created.current.models[0]?.contextWindow).toBe(800000)
     await created.forceRefresh()
-
-    expect(created.current.models.map(model => model.id)).toEqual(['gpt-6-astra'])
-    expect(warn.mock.calls.flat().join('\n')).toContain('NO_EXECUTABLE_MODELS')
-    expect(warn.mock.calls.flat().join('\n')).toContain('MODEL_METADATA_MISSING')
-    expect(warn.mock.calls.flat().join('\n')).toContain('EMPTY_LIST')
+    expect(created.current.models).toEqual([])
   })
 
   it('drops the prior account filter before refreshing a different account', async () => {
@@ -160,8 +137,8 @@ describe('live Codex catalog', () => {
     currentAccount = 'account-b'
     await created.forceRefresh()
 
-    expect(created.current.source).toBe('bundled')
-    expect(created.current.models.map(model => model.id)).toContain('gpt-5.6-luna')
+    expect(created.current.source).toBe('live')
+    expect(created.current.models.map(model => model.id)).toEqual(['future-without-metadata'])
   })
 
   it('coalesces concurrent refreshes into one request', async () => {
@@ -189,7 +166,7 @@ describe('live Codex catalog', () => {
       { slug: 'hidden', visibility: 'hide', supported_in_api: true },
       { ...listed('chatgpt-only', 1), supported_in_api: false },
       null,
-    ] })).toEqual([
+    ] })).toMatchObject([
       { slug: 'chatgpt-only', name: 'Live chatgpt-only', priority: 1 },
       { slug: 'gpt-6-astra', name: 'Live gpt-6-astra', priority: 2 },
     ])

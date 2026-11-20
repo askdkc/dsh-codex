@@ -76,9 +76,7 @@ pnpm dsh plugin --profile web remove @askdkc/dsh-codex
 
 ## モデルと接続診断
 
-プラグインはpi-ai 1.5.0のCodexカタログを同梱しているため、認証済みCodexエンドポイントが表示対象として返すモデルには、手書きのモデル表なしで実行に必要なメタデータが揃います。対象はGPT-5.6 Luna・Sol・Terra、GPT-6 Astra・Luna・Sol、GPT-6.1 Sol・Terraです。アカウントごとの表示可否と順序は認証済みカタログ（`https://chatgpt.com/backend-api/codex/models`）が決め、表示できないモデルは追加されません。
-
-GPT-6.1 SolとTerraは、Codex既定の500,000トークンのコンテキスト、128,000トークンの出力上限、テキスト・画像入力、カタログに記録されたreasoningレベルを使います。価格はOpenAI APIのモデルページに基づきます。ライブ一覧にあっても同梱カタログで実行できない未知のモデルには `MODEL_METADATA_MISSING` を出して非表示にし、他モデルの能力を推測して流用しません。
+プラグインは認証済みアカウントのモデル一覧を `https://chatgpt.com/backend-api/codex/models` から取得します。OpenAIが選択可能としたモデルを公式の優先順で表示し、新しいモデルIDもそのまま送信に使います。同梱のSDKカタログはオフライン時の初期一覧と既知モデルの補足情報に使います。
 
 接続失敗には、SDKの開始前・開始後の段階、SSE切替の有無と安全なエラーコードを残します。診断には生のclose理由・stack・header・本文を含めません。最初の応答イベントより前ではSDKがSSEに切り替えることがありますが、プラグインは再試行を追加せず、途中の応答やツール出力を再送しません。キャンセルを維持し、SSEのHTTPエラーではホストが分類できるようstatusを保持します。
 
