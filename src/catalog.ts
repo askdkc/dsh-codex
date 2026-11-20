@@ -107,23 +107,25 @@ export class CodexCatalog {
     this.timer = undefined
   }
 
-  /** Wait only up to the caller's latency budget for the initial refresh. */
-  async ensureInitial(waitMs: number): Promise<void> {
-    const initial = this.initial ?? this.start()
-    if (waitMs <= 0) return
-    let handle: NodeJS.Timeout | undefined
-    await Promise.race([
-      initial,
-      new Promise<void>(resolve => { handle = setTimeout(resolve, waitMs) }),
-    ])
-    if (handle !== undefined) clearTimeout(handle)
-  }
-
-  /** Revalidate in the background when the display-time TTL has elapsed. */
-  revalidateIfNeeded(): void {
+  /** Join any pending refresh or fetch an expired list within the caller's wait budget. */
+  async ensureFresh(waitMs: number): Promise<void> {
     if (this.disposed) return
-    if (this.lastCheckedAt !== undefined && this.now() - this.lastCheckedAt < this.revalidateAfterMs) return
-    void this.refresh()
+    let pending = this.inFlight
+    if (this.initial === undefined) pending = this.start()
+    else if (pending === undefined) {
+      if (this.lastCheckedAt !== undefined && this.now() - this.lastCheckedAt < this.revalidateAfterMs) return
+      pending = this.refresh()
+    }
+    if (waitMs <= 0) return
+    let timer: NodeJS.Timeout | undefined
+    try {
+      await Promise.race([
+        pending,
+        new Promise<void>(resolve => { timer = setTimeout(resolve, waitMs) }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   /** Force one bounded refresh, joining an already-running request. */

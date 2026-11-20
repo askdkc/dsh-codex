@@ -29,8 +29,7 @@ export class LiveCodexAdapter extends PiAiAdapter {
 
   private async ensureModel(provider: string, model: string): Promise<void> {
     this.assertRoute(provider)
-    await this.options.catalog.ensureInitial(this.options.initialWaitMs)
-    this.options.catalog.revalidateIfNeeded()
+    await this.options.catalog.ensureFresh(this.options.initialWaitMs)
     if (this.options.catalog.current.models.some(candidate => candidate.id === model)) return
     await this.options.catalog.forceRefresh()
     if (!this.options.catalog.current.models.some(candidate => candidate.id === model)) {
@@ -43,8 +42,7 @@ export class LiveCodexAdapter extends PiAiAdapter {
 
   override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     this.assertRoute(provider)
-    await this.options.catalog.ensureInitial(this.options.initialWaitMs)
-    this.options.catalog.revalidateIfNeeded()
+    await this.options.catalog.ensureFresh(this.options.initialWaitMs)
     return super.listModels(provider)
   }
 

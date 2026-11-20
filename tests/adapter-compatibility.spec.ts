@@ -15,6 +15,38 @@ afterEach(async () => {
 // Use the real adapter: listing alone does not exercise model resolution or
 // request preparation. Transport compatibility is covered in transport.spec.ts.
 describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact => {
+  it('shows newly listed Astra and Sol on the first lookup after expiry', async () => {
+    const plugin = artifact === 'source' ? sourcePlugin : await import('../lib/index.js')
+    const listed = (ids: string[]) => new Response(JSON.stringify({
+      models: ids.map(slug => ({ slug, visibility: 'list' })),
+    }))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(listed(['gpt-6-astra']))
+      .mockResolvedValueOnce(listed(['gpt-6.2-sol', 'gpt-6.2-astra']))
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new Context()
+    contexts.push(ctx)
+    await ctx.plugin(LlmRuntime)
+    ctx.provide('commands', { register: vi.fn() } as never)
+    ctx.provide('userQuestions', { ask: vi.fn() } as never)
+    ctx.provide('authorization', {} as never)
+    ctx.provide('credentials', { readRecord: async () => ({ kind: 'grant', payload: {
+      type: 'oauth', access: 'synthetic-access', refresh: 'synthetic-refresh',
+      expires: Date.now() + 3_600_000, accountId: 'synthetic-account',
+    } }) } as never)
+    await ctx.plugin(plugin)
+    const ids = async () => (await ctx.llm.listModels('openai-codex')).map(model => model.id)
+    expect(await ids()).toEqual(['gpt-6-astra'])
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000)
+    try {
+      const expected = ['gpt-6.2-sol', 'gpt-6.2-astra']
+      expect(await Promise.all([ids(), ids()])).toEqual([expected, expected])
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('resolves and prepares models across fallback, live refresh, and logout', async () => {
     const plugin = artifact === 'source' ? sourcePlugin : await import('../lib/index.js')
     let grant: unknown

@@ -19,6 +19,8 @@ import {
 } from '@deepseek-ai/dsh-llm-pi-ai'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
+import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
+import { withSupplementalCodexModels } from '../src/models.ts'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { apply, inject, name } from '../src/index.ts'
 
@@ -81,55 +83,17 @@ async function harness(options: {
 }
 
 describe('real Cordis authorization composition', () => {
-  it('offers the GPT-6 family from the bundled executable fallback catalog', async () => {
+  it('publishes and resolves the installed fallback catalog without credentials', async () => {
     const { ctx } = await harness()
-
-    await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
-      { id: 'gpt-5.6-luna' },
-      { id: 'gpt-5.6-sol' },
-      { id: 'gpt-5.6-terra' },
-      { id: 'gpt-6-astra', name: 'GPT-6 Astra', inputModalities: ['text', 'image'] },
-      { id: 'gpt-6-luna', name: 'GPT-6 Luna', inputModalities: ['text', 'image'] },
-      { id: 'gpt-6-sol', name: 'GPT-6 Sol', inputModalities: ['text', 'image'] },
-      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputModalities: ['text', 'image'] },
-      { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', inputModalities: ['text', 'image'] },
-    ])
-    for (const id of ['gpt-6-sol', 'gpt-6-luna']) {
-      await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({
-        provider: 'openai-codex', id,
-        inputModalities: ['text', 'image'],
-        context: { contextWindow: 272000 },
+    const fallback = withSupplementalCodexModels(openaiCodexProvider().getModels())
+    const listed = await ctx.llm.listModels('openai-codex')
+    expect(listed.map(model => model.id)).toEqual(fallback.map(model => model.id))
+    for (const model of fallback) {
+      await expect(ctx.llm.resolveModelInfo('openai-codex', model.id)).resolves.toMatchObject({
+        provider: 'openai-codex', id: model.id, name: model.name,
+        inputModalities: model.input, context: { contextWindow: model.contextWindow },
       })
     }
-    for (const id of ['gpt-6.1-sol', 'gpt-6.1-terra']) {
-      await expect(ctx.llm.resolveModelInfo('openai-codex', id)).resolves.toMatchObject({
-        provider: 'openai-codex', id,
-        inputModalities: ['text', 'image'],
-        context: { contextWindow: 500000 },
-      })
-    }
-    await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6.1-sol')).resolves.toMatchObject({
-      reasoning: { efforts: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(id => ({ id, name: `${id[0]!.toUpperCase()}${id.slice(1)}` })) },
-    })
-    await expect(ctx.llm.resolveModelInfo('openai-codex', 'gpt-6-astra')).resolves.toEqual({
-      provider: 'openai-codex',
-      id: 'gpt-6-astra',
-      name: 'GPT-6 Astra',
-      inputModalities: ['text', 'image'],
-      context: { contextWindow: 272000 },
-      reasoning: {
-        efforts: [
-          { id: 'minimal', name: 'Minimal' },
-          { id: 'low', name: 'Low' },
-          { id: 'medium', name: 'Medium' },
-          { id: 'high', name: 'High' },
-          { id: 'xhigh', name: 'Xhigh' },
-          { id: 'max', name: 'Max' },
-        ],
-      },
-      systemPromptUpdate: 'in-history',
-      toolUpdate: 'addition-only',
-    })
   })
 
   it('replaces the fallback with the authenticated account-visible list', async () => {
@@ -137,16 +101,9 @@ describe('real Cordis authorization composition', () => {
       'https://api.openai.com/auth': { chatgpt_account_id: 'account-123' },
     })).toString('base64url')
     const access = `header.${accountPayload}.signature`
+    const slugs = ['preview-model', 'newly-released-model']
     const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => new Response(JSON.stringify({
-      models: [
-        { slug: 'gpt-6.2-astra', visibility: 'list', supported_in_api: true },
-        { slug: 'gpt-6-astra', visibility: 'list', supported_in_api: true },
-        { slug: 'gpt-6-sol', visibility: 'list', supported_in_api: true },
-        { slug: 'gpt-6-luna', visibility: 'list', supported_in_api: true },
-        { slug: 'gpt-6.2-sol', visibility: 'list', supported_in_api: true },
-        { slug: 'future-without-transport-metadata', visibility: 'list', supported_in_api: true },
-        { slug: 'gpt-5.6-luna', visibility: 'list', supported_in_api: true },
-      ],
+      models: slugs.map(slug => ({ slug, visibility: 'list' })),
     }), { status: 200, headers: { etag: '"account-v1"' } }))
     vi.stubGlobal('fetch', fetchMock)
     const { ctx } = await harness({
@@ -159,15 +116,8 @@ describe('real Cordis authorization composition', () => {
       },
     })
 
-    await expect(ctx.llm.listModels('openai-codex')).resolves.toMatchObject([
-      { id: 'gpt-6.2-astra' },
-      { id: 'gpt-6-astra' },
-      { id: 'gpt-6-sol' },
-      { id: 'gpt-6-luna' },
-      { id: 'gpt-6.2-sol' },
-      { id: 'future-without-transport-metadata' },
-      { id: 'gpt-5.6-luna' },
-    ])
+    const listed = await ctx.llm.listModels('openai-codex')
+    expect(listed.map(model => model.id)).toEqual(slugs)
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       headers: {

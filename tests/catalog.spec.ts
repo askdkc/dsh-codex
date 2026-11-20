@@ -1,5 +1,5 @@
+import { readFile } from 'node:fs/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import {
   accountIdFromAccessToken,
   CodexCatalog,
@@ -10,16 +10,17 @@ import {
 const catalogs: CodexCatalog[] = []
 
 function catalog(options: {
+  timeoutMs?: number
   fetch?: typeof globalThis.fetch
   resolveCredential?: () => Promise<CodexCatalogCredential | undefined>
   warn?: (message: string) => void
 } = {}): CodexCatalog {
   const created = new CodexCatalog({
-    baseline: openaiCodexProvider().getModels(),
+    baseline: [],
     resolveCredential: options.resolveCredential ?? (async () => ({ accessToken: 'test-access' })),
     refreshIntervalMs: 60_000,
     revalidateAfterMs: 1,
-    timeoutMs: 1_000,
+    timeoutMs: options.timeoutMs ?? 1_000,
     random: () => 0.5,
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
@@ -36,7 +37,7 @@ function response(models: unknown[], init: ResponseInit = {}): Response {
   })
 }
 
-function listed(slug: string, priority = 0): Record<string, unknown> {
+function listed(slug: string, priority = 0) {
   return { slug, display_name: `Live ${slug}`, priority, visibility: 'list', supported_in_api: true }
 }
 
@@ -46,36 +47,21 @@ afterEach(() => {
 
 describe('live Codex catalog', () => {
   it('publishes the full account-visible list in official order', async () => {
-    const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => response([
-      listed('gpt-6.2-sol', 4),
-      listed('gpt-6.1-sol', 2),
-      listed('future-without-local-transport-metadata'),
-      listed('gpt-6-sol', 1),
-      listed('gpt-6.2-astra', 0),
-      { ...listed('gpt-6-luna'), visibility: 'hide' },
-      { ...listed('gpt-6-astra', 3), supported_in_api: false },
-    ], { headers: { etag: '"catalog-v1"' } }))
+    const retired = listed('retired', 0)
+    const retained = listed('retained', 1)
+    const release = { ...listed('just-released', 0), supported_in_api: false }
+    const hidden = { ...listed('private-preview'), visibility: 'hide' }
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(response([retained, retired]))
+      .mockResolvedValueOnce(response([retained, hidden, release]))
     const created = catalog({ fetch: fetchMock })
+    const entries = () => created.current.models.map(({ id, name }) => [id, name])
 
     await created.start()
-
+    expect(entries()).toEqual([[retired.slug, retired.display_name], [retained.slug, retained.display_name]])
+    await created.forceRefresh()
     expect(created.current.source).toBe('live')
-    expect(created.current.models.map(model => model.id)).toEqual([
-      'future-without-local-transport-metadata',
-      'gpt-6.2-astra',
-      'gpt-6-sol',
-      'gpt-6.1-sol',
-      'gpt-6-astra',
-      'gpt-6.2-sol',
-    ])
-    expect(created.current.models.map(model => model.name)).toEqual([
-      'Live future-without-local-transport-metadata',
-      'Live gpt-6.2-astra',
-      'Live gpt-6-sol',
-      'Live gpt-6.1-sol',
-      'Live gpt-6-astra',
-      'Live gpt-6.2-sol',
-    ])
+    expect(entries()).toEqual([[release.slug, release.display_name], [retained.slug, retained.display_name]])
     const [url, init] = fetchMock.mock.calls[0] ?? []
     expect(url).toBe('https://chatgpt.com/backend-api/codex/models?client_version=99.99.99')
     expect(init).toMatchObject({
@@ -89,9 +75,39 @@ describe('live Codex catalog', () => {
     })
   })
 
+  const accessToken = process.env.DSH_TEST_CODEX_ACCESS_TOKEN
+  const catalogFile = process.env.DSH_TEST_CODEX_CATALOG_FILE
+  it.skipIf(!accessToken && !catalogFile)('matches the visible IDs in an actual Codex catalog', async () => {
+    interface Row { slug: string; visibility: string; priority?: number }
+    const accountId = accessToken && accountIdFromAccessToken(accessToken)
+    let rows: Row[] = []
+    const created = catalog({
+      timeoutMs: 15_000,
+      resolveCredential: async () => ({
+        accessToken: accessToken || 'offline-fixture',
+        ...(accountId && { accountId }),
+      }),
+      fetch: async (url, init) => {
+        const result = catalogFile
+          ? new Response(await readFile(catalogFile, 'utf8'))
+          : await fetch(url, init)
+        rows = (await result.clone().json()).models
+        return result
+      },
+    })
+    await created.start()
+    expect(created.current.source).toBe('live')
+    const expected = rows
+      .map((row, index) => ({ ...row, priority: row.priority ?? index }))
+      .filter(row => row.visibility === 'list')
+      .sort((a, b) => a.priority - b.priority)
+      .map(row => row.slug)
+    expect(created.current.models.map(model => model.id)).toEqual([...new Set(expected)])
+  }, 20_000)
+
   it('sends ETag on revalidation and retains the published generation on 304', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(response([listed('gpt-6-astra')], { headers: { etag: '"catalog-v1"' } }))
+      .mockResolvedValueOnce(response([listed('example-model')], { headers: { etag: '"catalog-v1"' } }))
       .mockResolvedValueOnce(new Response(null, { status: 304 }))
     const created = catalog({ fetch: fetchMock })
     await created.start()
@@ -125,14 +141,14 @@ describe('live Codex catalog', () => {
   it('drops the prior account filter before refreshing a different account', async () => {
     let currentAccount = 'account-a'
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(response([listed('gpt-6-astra')]))
+      .mockResolvedValueOnce(response([listed('example-model')]))
       .mockResolvedValueOnce(response([listed('future-without-metadata')]))
     const created = catalog({
       fetch: fetchMock,
       resolveCredential: async () => ({ accessToken: 'test-access', accountId: currentAccount }),
     })
     await created.start()
-    expect(created.current.models.map(model => model.id)).toEqual(['gpt-6-astra'])
+    expect(created.current.models.map(model => model.id)).toEqual(['example-model'])
 
     currentAccount = 'account-b'
     await created.forceRefresh()
@@ -145,7 +161,7 @@ describe('live Codex catalog', () => {
     let release: (() => void) | undefined
     const fetchMock = vi.fn(async (..._args: Parameters<typeof globalThis.fetch>) => {
       await new Promise<void>(resolve => { release = resolve })
-      return response([listed('gpt-6-astra')])
+      return response([listed('example-model')])
     })
     const created = catalog({ fetch: fetchMock })
 
@@ -160,15 +176,15 @@ describe('live Codex catalog', () => {
 
   it('sorts and filters malformed, hidden, and duplicate official rows', () => {
     expect(parseOfficialModels({ models: [
-      listed('gpt-6-astra', 2),
-      listed('gpt-6-astra', 1),
+      listed('example-model', 2),
+      listed('example-model', 1),
       { slug: '', visibility: 'list', supported_in_api: true },
       { slug: 'hidden', visibility: 'hide', supported_in_api: true },
       { ...listed('chatgpt-only', 1), supported_in_api: false },
       null,
     ] })).toMatchObject([
       { slug: 'chatgpt-only', name: 'Live chatgpt-only', priority: 1 },
-      { slug: 'gpt-6-astra', name: 'Live gpt-6-astra', priority: 2 },
+      { slug: 'example-model', name: 'Live example-model', priority: 2 },
     ])
     expect(() => parseOfficialModels({ data: [] })).toThrow()
   })

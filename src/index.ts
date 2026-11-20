@@ -31,6 +31,7 @@ import {
   type CodexCatalogSnapshot,
 } from './catalog.ts'
 import { codexAuthContext, credentialStoreFrom } from './credentials.ts'
+import { withSupplementalCodexModels } from './models.ts'
 import { providerWithModels } from './provider.ts'
 
 /** Cordis plugin name. */
@@ -314,7 +315,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   })
 
   const upstream = openaiCodexProvider()
-  const bundledModels = upstream.getModels()
+  const bundledModels = withSupplementalCodexModels(upstream.getModels())
   const auth = {
     credentials: credentialStoreFrom(ctx),
     authContext: codexAuthContext(),
