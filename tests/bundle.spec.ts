@@ -63,9 +63,10 @@ describe('bundle patch contract', () => {
     }
 
     expect(manifest.dependencies ?? {}).toEqual({})
-    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-authorization']).toBe('^0.1.7-rc.1 || ^0.2.0-rc.1')
+    expect(manifest.peerDependencies?.['@deepseek-ai/cordis']).toBe('^4.0.4 || 4.2.0-alpha.1')
+    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-authorization']).toBe('^0.1.7-rc.1 || ^0.2.0-rc.1 || 0.2.2-rc.1 || 0.2.2-rc.5 || 0.2.3-alpha.2')
     for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-')) expect(range).toBe('^0.1.7-rc.1 || ^0.2.0-rc.1')
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(range).toBe('^0.1.7-rc.1 || ^0.2.0-rc.1 || 0.2.2-rc.1 || 0.2.2-rc.5 || 0.2.3-alpha.2')
     }
     expect(manifest.devDependencies?.['@earendil-works/pi-ai']).toBe('1.5.0')
     expect(manifest.files).toContain('README.ja.md')

@@ -284,23 +284,27 @@ function profileFor(
   models: readonly Model<Api>[],
   warn: (message: string) => void,
 ): ReadonlyMap<string, ResolvedPiAiProviderProfile> {
-  return new Map<string, ResolvedPiAiProviderProfile>([[
-    ROUTE,
-    {
-      provider: ROUTE,
-      displayName: provider.name,
-      streamIdleTimeoutMs: DEFAULT_STREAM_IDLE_TIMEOUT_MS,
-      maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
-      maxRequestImages: DEFAULT_MAX_REQUEST_IMAGES,
-      imageOffloadCountQuantum: DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
-      requestImagePixelBudget: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
-      requestImageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
-      retryPolicy: resolveRetryPolicy(undefined, `codex-subscription-oauth: provider "${ROUTE}" retryPolicy`),
-      configuredMaxTokens: new Map(),
-      modelErrors: new Map(),
-      piProvider: providerWithModels(provider, models, warn),
-    },
-  ]])
+  const profile = {
+    provider: ROUTE,
+    displayName: provider.name,
+    streamIdleTimeoutMs: DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+    maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
+    maxRequestImages: DEFAULT_MAX_REQUEST_IMAGES,
+    imageOffloadCountQuantum: DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
+    requestImagePixelBudget: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
+    // The RC reads requestImageMaxBytes. The alpha uses maxImageBytes and
+    // divides the aggregate base64 budget across this many images.
+    requestImageBudgetCount: 20,
+    maxImageBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
+    requestImageMaxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
+    retryPolicy: resolveRetryPolicy(undefined, `codex-subscription-oauth: provider "${ROUTE}" retryPolicy`),
+    configuredMaxTokens: new Map(),
+    modelErrors: new Map(),
+    // The host and bundled SDK brand transcript contexts with different symbols.
+    // providerWithModels normalizes the incoming context before either stream call.
+    piProvider: providerWithModels(provider, models, warn) as unknown as NonNullable<ResolvedPiAiProviderProfile['piProvider']>,
+  }
+  return new Map([[ROUTE, profile]])
 }
 
 /** Register the command, dynamic model route, and fallback authorization service. */

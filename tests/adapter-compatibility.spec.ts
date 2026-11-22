@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
+import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import * as sourcePlugin from '../src/index.ts'
 
@@ -76,6 +77,14 @@ describe.each(['source', 'built'] as const)('%s adapter compatibility', artifact
     if (adapter === undefined) throw new Error('Codex adapter was not registered')
 
     const fallback = await ctx.llm.listModels('openai-codex')
+    const imageTarget = adapter.imageRequestTarget('openai-codex', 'gpt-6.1-terra', {
+      attachmentId: AttachmentId('test-image'), mediaType: 'image/png', bytes: 512, width: 32, height: 32,
+    })
+    if ('maxImageBytes' in imageTarget) {
+      expect(imageTarget).toMatchObject({ maxImageBytes: 786432, imageTargetBytes: 786432 })
+    } else {
+      expect(imageTarget).toMatchObject({ maxBytes: 1048576 })
+    }
     expect(fallback.length).toBeGreaterThan(1)
     expect(fallback).toContainEqual(expect.objectContaining({ id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol' }))
     expect(fallback).toContainEqual(expect.objectContaining({ id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra' }))
